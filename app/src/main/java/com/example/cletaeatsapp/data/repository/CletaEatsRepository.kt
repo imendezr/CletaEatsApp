@@ -278,6 +278,37 @@ class CletaEatsRepository(
         Log.d("CletaEatsRepository", "Repartidores saved successfully")
     }
 
+    suspend fun addQueja(repartidorId: String, queja: String, addAmonestacion: Boolean) =
+        withContext(Dispatchers.IO) {
+            Log.d("CletaEatsRepository", "Adding queja for repartidorId: $repartidorId")
+            val repartidores = getRepartidores().toMutableList()
+            val repartidor = repartidores.find { it.id == repartidorId }
+            if (repartidor == null) {
+                Log.w("CletaEatsRepository", "Repartidor not found: $repartidorId")
+                return@withContext false
+            }
+            val updatedQuejas =
+                if (queja.isNotBlank()) repartidor.quejas + queja else repartidor.quejas
+            val updatedAmonestaciones = repartidor.amonestaciones + if (addAmonestacion) 1 else 0
+            val updatedRepartidor = repartidor.copy(
+                quejas = updatedQuejas,
+                amonestaciones = updatedAmonestaciones,
+                estado = if (updatedAmonestaciones >= 4) "inactivo" else repartidor.estado
+            )
+            val index = repartidores.indexOf(repartidor)
+            if (index >= 0) {
+                repartidores[index] = updatedRepartidor
+                saveRepartidores(repartidores)
+                Log.d(
+                    "CletaEatsRepository",
+                    "Queja added successfully for repartidor: $repartidorId"
+                )
+                return@withContext true
+            }
+            Log.w("CletaEatsRepository", "Failed to update repartidor: $repartidorId")
+            false
+        }
+
     suspend fun createOrder(clienteId: String, restauranteId: String, combos: List<Int>): Pedido? =
         withContext(Dispatchers.IO) {
             val repartidores = getRepartidores()
@@ -417,12 +448,12 @@ class CletaEatsRepository(
     }
 
     private suspend fun initializeMockPedidos() = withContext(Dispatchers.IO) {
-        val restaurants = getRestaurantes() // Fetch existing restaurants
+        val restaurants = getRestaurantes()
         val mockPedidos = restaurants.map { restaurant ->
             Pedido(
                 id = UUID.randomUUID().toString(),
                 clienteId = "123456789",
-                restauranteId = restaurant.id, // Use existing restaurant ID
+                restauranteId = restaurant.id,
                 repartidorId = UUID.randomUUID().toString(),
                 combos = listOf(1, 2),
                 precio = 9000.0,

@@ -48,6 +48,10 @@ class OrderViewModel @Inject constructor(
         }
     }
 
+    fun getPedidoById(pedidoId: String): Pedido? {
+        return pedidos.value.find { it.id == pedidoId }
+    }
+
     fun addCombo(combo: Int) {
         if (combo in 1..9 && !selectedCombos.value.contains(combo)) {
             val currentCombos = selectedCombos.value.toMutableList()

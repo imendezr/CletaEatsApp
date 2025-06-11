@@ -3,19 +3,24 @@ package com.example.cletaeatsapp.ui.navigation
 import android.util.Log
 import androidx.compose.material3.DrawerState
 import androidx.compose.runtime.Composable
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.example.cletaeatsapp.data.model.Pedido
 import com.example.cletaeatsapp.data.model.Restaurante
+import com.example.cletaeatsapp.ui.screens.FeedbackScreen
 import com.example.cletaeatsapp.ui.screens.LoginScreen
 import com.example.cletaeatsapp.ui.screens.OrdersScreen
 import com.example.cletaeatsapp.ui.screens.ProfileScreen
+import com.example.cletaeatsapp.ui.screens.RepartidorQuejasScreen
 import com.example.cletaeatsapp.ui.screens.RepartidorRegistrationScreen
 import com.example.cletaeatsapp.ui.screens.ReportsScreen
 import com.example.cletaeatsapp.ui.screens.RestaurantDetailsScreen
 import com.example.cletaeatsapp.ui.screens.RestaurantListScreen
 import com.example.cletaeatsapp.ui.screens.RestaurantRegistrationScreen
 import com.example.cletaeatsapp.viewmodel.LoginViewModel
+import com.example.cletaeatsapp.viewmodel.OrderViewModel
 import com.google.gson.Gson
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -119,6 +124,33 @@ fun NavGraph(
         }
         composable("register_repartidor") {
             RepartidorRegistrationScreen(
+                navController = navController
+            )
+        }
+        composable("feedback/{pedidoId}") { backStackEntry ->
+            val pedidoId = backStackEntry.arguments?.getString("pedidoId") ?: ""
+            if (pedidoId.isBlank()) {
+                Log.w("NavGraph", "Invalid pedidoId, redirecting to orders")
+                navController.navigate("orders")
+                return@composable
+            }
+            val orderViewModel: OrderViewModel = hiltViewModel()
+            val pedido: Pedido? = orderViewModel.getPedidoById(pedidoId)
+            if (pedido == null) {
+                Log.w("NavGraph", "Pedido not found, redirecting to orders")
+                navController.navigate("orders")
+                return@composable
+            }
+            FeedbackScreen(
+                pedido = pedido,
+                onFeedbackSubmitted = { navController.navigate("orders") },
+                navController = navController
+            )
+        }
+        composable("repartidor_quejas") {
+            RepartidorQuejasScreen(
+                onOpenDrawer = { scope.launch { drawerState.open() } },
+                loginViewModel = loginViewModel,
                 navController = navController
             )
         }

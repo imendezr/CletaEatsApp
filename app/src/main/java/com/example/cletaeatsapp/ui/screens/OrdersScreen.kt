@@ -111,6 +111,7 @@ fun OrdersScreen(
                                 onMarkDelivered = {
                                     if (pedido.estado != "entregado") {
                                         viewModel.updateOrderStatus(pedido.id, "entregado")
+                                        navController.navigate("feedback/${pedido.id}")
                                     }
                                 },
                                 onClick = { selectedPedido = pedido }
@@ -132,6 +133,7 @@ fun OrdersScreen(
                             onMarkDelivered = {
                                 if (pedido.estado != "entregado") {
                                     viewModel.updateOrderStatus(pedido.id, "entregado")
+                                    navController.navigate("feedback/${pedido.id}")
                                 }
                             }
                         )
@@ -186,6 +188,7 @@ fun OrdersScreen(
                                         onMarkDelivered = {
                                             if (pedido.estado != "entregado") {
                                                 viewModel.updateOrderStatus(pedido.id, "entregado")
+                                                navController.navigate("feedback/${pedido.id}")
                                             }
                                         }
                                     )

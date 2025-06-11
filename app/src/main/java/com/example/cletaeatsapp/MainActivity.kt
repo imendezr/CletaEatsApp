@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -215,6 +216,18 @@ fun MainNavDrawer() {
                         scope.launch {
                             drawerState.close()
                             navController.navigate("register_repartidor")
+                        }
+                    }
+                )
+                DrawerItem(
+                    text = "Quejas de Repartidores",
+                    icon = Icons.Default.Warning,
+                    contentDescription = "Quejas de repartidores",
+                    tag = "drawer_repartidor_quejas",
+                    onClick = {
+                        scope.launch {
+                            drawerState.close()
+                            navController.navigate("repartidor_quejas")
                         }
                     }
                 )
