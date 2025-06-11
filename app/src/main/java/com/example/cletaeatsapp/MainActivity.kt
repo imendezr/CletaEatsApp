@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.DeliveryDining
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Restaurant
@@ -190,6 +191,30 @@ fun MainNavDrawer() {
                         scope.launch {
                             drawerState.close()
                             navController.navigate("reports")
+                        }
+                    }
+                )
+                DrawerItem(
+                    text = "Registrar Restaurante",
+                    icon = Icons.Default.Restaurant,
+                    contentDescription = "Registrar restaurante",
+                    tag = "drawer_register_restaurant",
+                    onClick = {
+                        scope.launch {
+                            drawerState.close()
+                            navController.navigate("register_restaurant")
+                        }
+                    }
+                )
+                DrawerItem(
+                    text = "Registrar Repartidor",
+                    icon = Icons.Default.DeliveryDining,
+                    contentDescription = "Registrar repartidor",
+                    tag = "drawer_register_repartidor",
+                    onClick = {
+                        scope.launch {
+                            drawerState.close()
+                            navController.navigate("register_repartidor")
                         }
                     }
                 )

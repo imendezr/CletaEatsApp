@@ -10,9 +10,11 @@ import com.example.cletaeatsapp.data.model.Restaurante
 import com.example.cletaeatsapp.ui.screens.LoginScreen
 import com.example.cletaeatsapp.ui.screens.OrdersScreen
 import com.example.cletaeatsapp.ui.screens.ProfileScreen
+import com.example.cletaeatsapp.ui.screens.RepartidorRegistrationScreen
 import com.example.cletaeatsapp.ui.screens.ReportsScreen
 import com.example.cletaeatsapp.ui.screens.RestaurantDetailsScreen
 import com.example.cletaeatsapp.ui.screens.RestaurantListScreen
+import com.example.cletaeatsapp.ui.screens.RestaurantRegistrationScreen
 import com.example.cletaeatsapp.viewmodel.LoginViewModel
 import com.google.gson.Gson
 import kotlinx.coroutines.CoroutineScope
@@ -47,7 +49,7 @@ fun NavGraph(
         composable("restaurants/{clienteId}") { backStackEntry ->
             val clienteId = backStackEntry.arguments?.getString("clienteId") ?: ""
             Log.d("NavGraph", "Entered restaurants route with clienteId: $clienteId")
-            if (clienteId.isBlank()) {
+            if (clienteId.isBlank() && clienteId != "0") {
                 Log.w("NavGraph", "Blank clienteId, redirecting to login")
                 navController.navigate("login") {
                     popUpTo(0) { inclusive = true }
@@ -107,6 +109,16 @@ fun NavGraph(
             ReportsScreen(
                 onOpenDrawer = { scope.launch { drawerState.open() } },
                 loginViewModel = loginViewModel,
+                navController = navController
+            )
+        }
+        composable("register_restaurant") {
+            RestaurantRegistrationScreen(
+                navController = navController
+            )
+        }
+        composable("register_repartidor") {
+            RepartidorRegistrationScreen(
                 navController = navController
             )
         }
