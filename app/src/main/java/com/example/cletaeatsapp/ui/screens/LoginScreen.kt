@@ -1,5 +1,6 @@
 package com.example.cletaeatsapp.ui.screens
 
+import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -7,7 +8,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -21,7 +24,7 @@ import com.example.cletaeatsapp.viewmodel.LoginViewModel
 
 @Composable
 fun LoginScreen(
-    onLoginSuccess: () -> Unit,
+    onLoginSuccess: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: LoginViewModel = hiltViewModel()
 ) {
@@ -32,6 +35,11 @@ fun LoginScreen(
     val correo by viewModel.correo
     val errorMessage by viewModel.errorMessage
     val isRegistering by viewModel.isRegistering
+    val isLoading by viewModel.isLoading
+    Log.d(
+        "LoginScreen",
+        "Recomposing LoginScreen, isLoading: $isLoading, isRegistering: $isRegistering"
+    )
 
     Column(
         modifier = modifier
@@ -49,7 +57,8 @@ fun LoginScreen(
             value = cedula,
             onValueChange = { viewModel.cedula.value = it },
             label = { Text("Cédula") },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !isLoading
         )
         if (isRegistering) {
             Spacer(modifier = Modifier.height(8.dp))
@@ -57,39 +66,63 @@ fun LoginScreen(
                 value = nombre,
                 onValueChange = { viewModel.nombre.value = it },
                 label = { Text("Nombre") },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isLoading
             )
             Spacer(modifier = Modifier.height(8.dp))
             OutlinedTextField(
                 value = direccion,
                 onValueChange = { viewModel.direccion.value = it },
                 label = { Text("Dirección") },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isLoading
             )
             Spacer(modifier = Modifier.height(8.dp))
             OutlinedTextField(
                 value = telefono,
                 onValueChange = { viewModel.telefono.value = it },
                 label = { Text("Teléfono") },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isLoading
             )
             Spacer(modifier = Modifier.height(8.dp))
             OutlinedTextField(
                 value = correo,
                 onValueChange = { viewModel.correo.value = it },
                 label = { Text("Correo") },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isLoading
             )
         }
         Spacer(modifier = Modifier.height(16.dp))
         Button(
             onClick = {
-                if (isRegistering) viewModel.register(onLoginSuccess)
-                else viewModel.login(onLoginSuccess)
+                if (isRegistering) {
+                    Log.d("LoginScreen", "Register button clicked")
+                    viewModel.register { cedula ->
+                        Log.d("LoginScreen", "Register success, navigating with cedula: $cedula")
+                        onLoginSuccess(cedula)
+                    }
+                } else {
+                    Log.d("LoginScreen", "Login button clicked")
+                    viewModel.login { cedula ->
+                        Log.d("LoginScreen", "Login success, navigating with cedula: $cedula")
+                        onLoginSuccess(cedula)
+                    }
+                }
             },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !isLoading
         ) {
-            Text(if (isRegistering) "Registrar" else "Iniciar Sesión")
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    strokeWidth = 2.dp
+                )
+            } else {
+                Text(if (isRegistering) "Registrar" else "Iniciar Sesión")
+            }
         }
         errorMessage?.let {
             Spacer(modifier = Modifier.height(8.dp))

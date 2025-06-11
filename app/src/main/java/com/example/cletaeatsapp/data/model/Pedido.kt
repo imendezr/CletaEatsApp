@@ -4,6 +4,7 @@ data class Pedido(
     val id: String,
     val clienteId: String,
     val restauranteId: String,
+    val repartidorId: String?,
     val combos: List<Int>, // Lista de números de combos (1 a 9)
     val precio: Double,
     val costoTransporte: Double,
@@ -11,5 +12,6 @@ data class Pedido(
     val total: Double,
     val estado: String, // "en preparación", "en camino", "suspendido", "entregado"
     val horaRealizado: String,
-    val horaEntregado: String?
+    val horaEntregado: String?,
+    val restaurantName: String? = null
 )
