@@ -11,7 +11,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class ProfileViewModel @Inject constructor(
+class PerfilViewModel @Inject constructor(
     private val repository: CletaEatsRepository
 ) : ViewModel() {
     private val _isLoading = MutableStateFlow(false)

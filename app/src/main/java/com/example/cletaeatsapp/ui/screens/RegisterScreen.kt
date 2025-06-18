@@ -44,27 +44,27 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.example.cletaeatsapp.data.repository.UserType
-import com.example.cletaeatsapp.viewmodel.RegisterViewModel
+import com.example.cletaeatsapp.viewmodel.RegistroViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegisterScreen(
     navController: NavController,
     onRegisterSuccess: (String, UserType) -> Unit,
-    registerViewModel: RegisterViewModel = hiltViewModel()
+    registroViewModel: RegistroViewModel = hiltViewModel()
 ) {
-    val cedula by registerViewModel.cedula.collectAsStateWithLifecycle()
-    val nombre by registerViewModel.nombre.collectAsStateWithLifecycle()
-    val direccion by registerViewModel.direccion.collectAsStateWithLifecycle()
-    val telefono by registerViewModel.telefono.collectAsStateWithLifecycle()
-    val correo by registerViewModel.correo.collectAsStateWithLifecycle()
-    val contrasena by registerViewModel.contrasena.collectAsStateWithLifecycle()
-    val distancia by registerViewModel.distancia.collectAsStateWithLifecycle()
-    val costoPorKm by registerViewModel.costoPorKm.collectAsStateWithLifecycle()
-    val tipoUsuario by registerViewModel.tipoUsuario.collectAsStateWithLifecycle()
-    val isLoading by registerViewModel.isLoading.collectAsStateWithLifecycle()
-    val errorMessage by registerViewModel.errorMessage.collectAsStateWithLifecycle()
-    val fieldErrors by registerViewModel.fieldErrors.collectAsStateWithLifecycle()
+    val cedula by registroViewModel.cedula.collectAsStateWithLifecycle()
+    val nombre by registroViewModel.nombre.collectAsStateWithLifecycle()
+    val direccion by registroViewModel.direccion.collectAsStateWithLifecycle()
+    val telefono by registroViewModel.telefono.collectAsStateWithLifecycle()
+    val correo by registroViewModel.correo.collectAsStateWithLifecycle()
+    val contrasena by registroViewModel.contrasena.collectAsStateWithLifecycle()
+    val distancia by registroViewModel.distancia.collectAsStateWithLifecycle()
+    val costoPorKm by registroViewModel.costoPorKm.collectAsStateWithLifecycle()
+    val tipoUsuario by registroViewModel.tipoUsuario.collectAsStateWithLifecycle()
+    val isLoading by registroViewModel.isLoading.collectAsStateWithLifecycle()
+    val errorMessage by registroViewModel.errorMessage.collectAsStateWithLifecycle()
+    val fieldErrors by registroViewModel.fieldErrors.collectAsStateWithLifecycle()
     val scrollState = rememberScrollState()
 
     Scaffold(
@@ -103,7 +103,7 @@ fun RegisterScreen(
                     ) {
                         OutlinedTextField(
                             value = cedula,
-                            onValueChange = registerViewModel::updateCedula,
+                            onValueChange = registroViewModel::updateCedula,
                             label = { Text("Cédula") },
                             modifier = Modifier.fillMaxWidth(),
                             isError = fieldErrors["cedula"] != null,
@@ -120,7 +120,7 @@ fun RegisterScreen(
                         Spacer(modifier = Modifier.height(8.dp))
                         OutlinedTextField(
                             value = nombre,
-                            onValueChange = registerViewModel::updateNombre,
+                            onValueChange = registroViewModel::updateNombre,
                             label = { Text("Nombre") },
                             modifier = Modifier.fillMaxWidth(),
                             isError = fieldErrors["nombre"] != null,
@@ -136,7 +136,7 @@ fun RegisterScreen(
                         Spacer(modifier = Modifier.height(8.dp))
                         OutlinedTextField(
                             value = direccion,
-                            onValueChange = registerViewModel::updateDireccion,
+                            onValueChange = registroViewModel::updateDireccion,
                             label = { Text("Dirección") },
                             modifier = Modifier.fillMaxWidth(),
                             isError = fieldErrors["direccion"] != null,
@@ -152,7 +152,7 @@ fun RegisterScreen(
                         Spacer(modifier = Modifier.height(8.dp))
                         OutlinedTextField(
                             value = telefono,
-                            onValueChange = registerViewModel::updateTelefono,
+                            onValueChange = registroViewModel::updateTelefono,
                             label = { Text("Teléfono") },
                             modifier = Modifier.fillMaxWidth(),
                             isError = fieldErrors["telefono"] != null,
@@ -169,7 +169,7 @@ fun RegisterScreen(
                         Spacer(modifier = Modifier.height(8.dp))
                         OutlinedTextField(
                             value = correo,
-                            onValueChange = registerViewModel::updateCorreo,
+                            onValueChange = registroViewModel::updateCorreo,
                             label = { Text("Correo") },
                             modifier = Modifier.fillMaxWidth(),
                             isError = fieldErrors["correo"] != null,
@@ -187,7 +187,7 @@ fun RegisterScreen(
                         DropdownMenuBox(
                             options = listOf("Cliente", "Repartidor"),
                             selectedOption = tipoUsuario,
-                            onOptionSelected = registerViewModel::updateTipoUsuario,
+                            onOptionSelected = registroViewModel::updateTipoUsuario,
                             label = "Tipo de usuario",
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -195,7 +195,7 @@ fun RegisterScreen(
                             Spacer(modifier = Modifier.height(8.dp))
                             OutlinedTextField(
                                 value = distancia,
-                                onValueChange = registerViewModel::updateDistancia,
+                                onValueChange = registroViewModel::updateDistancia,
                                 label = { Text("Distancia (km)") },
                                 modifier = Modifier.fillMaxWidth(),
                                 isError = fieldErrors["distancia"] != null,
@@ -212,7 +212,7 @@ fun RegisterScreen(
                             Spacer(modifier = Modifier.height(8.dp))
                             OutlinedTextField(
                                 value = costoPorKm,
-                                onValueChange = registerViewModel::updateCostoPorKm,
+                                onValueChange = registroViewModel::updateCostoPorKm,
                                 label = { Text("Costo por km") },
                                 modifier = Modifier.fillMaxWidth(),
                                 isError = fieldErrors["costoPorKm"] != null,
@@ -230,7 +230,7 @@ fun RegisterScreen(
                         Spacer(modifier = Modifier.height(8.dp))
                         OutlinedTextField(
                             value = contrasena,
-                            onValueChange = registerViewModel::updateContrasena,
+                            onValueChange = registroViewModel::updateContrasena,
                             label = { Text("Contraseña") },
                             modifier = Modifier.fillMaxWidth(),
                             visualTransformation = PasswordVisualTransformation(),
@@ -254,7 +254,7 @@ fun RegisterScreen(
                             )
                         }
                         Button(
-                            onClick = { registerViewModel.register(onRegisterSuccess) },
+                            onClick = { registroViewModel.register(onRegisterSuccess) },
                             modifier = Modifier.fillMaxWidth(),
                             enabled = !isLoading
                         ) {

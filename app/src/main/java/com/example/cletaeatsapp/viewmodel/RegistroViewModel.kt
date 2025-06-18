@@ -21,7 +21,7 @@ import java.util.UUID
 import javax.inject.Inject
 
 @HiltViewModel
-class RegisterViewModel @Inject constructor(
+class RegistroViewModel @Inject constructor(
     private val repository: CletaEatsRepository,
     private val dataStore: DataStore<Preferences>
 ) : ViewModel() {

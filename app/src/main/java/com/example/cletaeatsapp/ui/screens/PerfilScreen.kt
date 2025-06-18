@@ -43,7 +43,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.example.cletaeatsapp.data.repository.UserType
 import com.example.cletaeatsapp.viewmodel.LoginViewModel
-import com.example.cletaeatsapp.viewmodel.ProfileViewModel
+import com.example.cletaeatsapp.viewmodel.PerfilViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -52,7 +52,7 @@ fun PerfilScreen(
     modifier: Modifier = Modifier,
     loginViewModel: LoginViewModel,
     navController: NavController,
-    profileViewModel: ProfileViewModel = hiltViewModel()
+    perfilViewModel: PerfilViewModel = hiltViewModel()
 ) {
     val cedulaState by loginViewModel.cedulaFlow.collectAsStateWithLifecycle()
     val isLoadingState by loginViewModel.isLoading.collectAsStateWithLifecycle()
@@ -275,7 +275,7 @@ fun PerfilScreen(
                                 Spacer(modifier = Modifier.height(16.dp))
                                 Button(
                                     onClick = {
-                                        profileViewModel.updateProfile(
+                                        perfilViewModel.updateProfile(
                                             cedula = cedulaState,
                                             nombre = nombre,
                                             direccion = direccion,
