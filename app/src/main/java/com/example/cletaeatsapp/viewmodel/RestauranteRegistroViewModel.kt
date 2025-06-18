@@ -14,7 +14,7 @@ import java.util.UUID
 import javax.inject.Inject
 
 @HiltViewModel
-class RestaurantRegistrationViewModel @Inject constructor(
+class RestauranteRegistroViewModel @Inject constructor(
     private val repository: CletaEatsRepository
 ) : ViewModel() {
     var cedulaJuridica = mutableStateOf("")

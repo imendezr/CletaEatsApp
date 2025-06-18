@@ -35,27 +35,28 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.example.cletaeatsapp.data.model.Restaurante
 import com.example.cletaeatsapp.utils.format
+import com.example.cletaeatsapp.viewmodel.ClienteOrdenViewModel
 import com.example.cletaeatsapp.viewmodel.LoginViewModel
-import com.example.cletaeatsapp.viewmodel.OrderViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RestaurantDetailsScreen(
+fun RestauranteDetallesScreen(
     restaurante: Restaurante,
     clienteId: String,
     onOpenDrawer: () -> Unit,
     onOrderCreated: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: OrderViewModel = hiltViewModel(),
+    viewModel: ClienteOrdenViewModel = hiltViewModel(),
     loginViewModel: LoginViewModel,
     navController: NavController
 ) {
-    val selectedCombos by viewModel.selectedCombos
-    val isLoading by viewModel.isLoading
-    val errorMessage by viewModel.errorMessage
+    val selectedCombos by viewModel.selectedCombos.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
 
     Scaffold(
         modifier = modifier,
@@ -86,7 +87,12 @@ fun RestaurantDetailsScreen(
         floatingActionButton = {
             AnimatedVisibility(visible = selectedCombos.isNotEmpty()) {
                 FloatingActionButton(
-                    onClick = { viewModel.createOrder(clienteId, restaurante.id, onOrderCreated) },
+                    onClick = {
+                        viewModel.createOrder(clienteId, restaurante.id) {
+                            onOrderCreated()
+                            navController.navigate("orders")
+                        }
+                    },
                     shape = MaterialTheme.shapes.large,
                     containerColor = MaterialTheme.colorScheme.primary
                 ) {

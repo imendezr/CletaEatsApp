@@ -15,7 +15,8 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.Menu
@@ -31,41 +32,58 @@ import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSiz
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import com.example.cletaeatsapp.ui.components.RestaurantCard
+import com.example.cletaeatsapp.data.model.Pedido
+import com.example.cletaeatsapp.data.repository.UserType
+import com.example.cletaeatsapp.ui.components.OrdenCard
+import com.example.cletaeatsapp.viewmodel.ClienteOrdenViewModel
 import com.example.cletaeatsapp.viewmodel.LoginViewModel
-import com.example.cletaeatsapp.viewmodel.RestaurantViewModel
-import com.google.gson.Gson
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
-fun RestaurantListScreen(
-    navController: NavController,
-    clienteId: String,
+fun ClienteOrdenesScreen(
     onOpenDrawer: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: RestaurantViewModel = hiltViewModel(),
-    loginViewModel: LoginViewModel
+    viewModel: ClienteOrdenViewModel = hiltViewModel(),
+    loginViewModel: LoginViewModel,
+    navController: NavController
 ) {
+    val userType by loginViewModel.userType.collectAsStateWithLifecycle()
+    // Role validation
+    if (userType !is UserType.ClientUser) {
+        LaunchedEffect(Unit) {
+            navController.navigate("login") {
+                popUpTo(0) { inclusive = true }
+            }
+        }
+        return
+    }
+
+    val pedidos by viewModel.pedidos.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val activity = context as? Activity ?: throw IllegalStateException("Context is not an Activity")
     val windowSizeClass = calculateWindowSizeClass(activity)
     val isExpanded = windowSizeClass.widthSizeClass == WindowWidthSizeClass.Expanded
-    val restaurants by viewModel.restaurants
-    val isLoading by viewModel.isLoading
-    val errorMessage by viewModel.errorMessage
+    var selectedPedido by remember { mutableStateOf<Pedido?>(null) }
 
     Scaffold(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text("Restaurantes", style = MaterialTheme.typography.headlineSmall) },
+                title = { Text("Mis Pedidos", style = MaterialTheme.typography.headlineSmall) },
                 navigationIcon = {
                     IconButton(onClick = onOpenDrawer) {
                         Icon(Icons.Default.Menu, contentDescription = "Abrir menú")
@@ -93,20 +111,18 @@ fun RestaurantListScreen(
                     modifier = Modifier
                         .weight(1f)
                         .padding(8.dp),
-                    contentPadding = PaddingValues(bottom = 16.dp)
+                    contentPadding = PaddingValues(bottom = 16.dp),
+                    state = rememberLazyListState()
                 ) {
-                    items(restaurants, key = { it.id }) { restaurant ->
+                    itemsIndexed(pedidos) { index, pedido ->
                         AnimatedVisibility(
                             visible = true,
                             enter = fadeIn() + slideInVertically(),
                             exit = fadeOut() + slideOutVertically()
                         ) {
-                            RestaurantCard(
-                                restaurante = restaurant,
-                                onClick = {
-                                    val restaurantJson = Gson().toJson(restaurant)
-                                    navController.navigate("restaurant_details/$clienteId/$restaurantJson")
-                                }
+                            OrdenCard(
+                                pedido = pedido,
+                                onClick = { selectedPedido = pedido }
                             )
                         }
                     }
@@ -119,8 +135,10 @@ fun RestaurantListScreen(
                         .padding(16.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = "Seleccione un restaurante para ver detalles",
+                    selectedPedido?.let { pedido ->
+                        OrdenCard(pedido = pedido)
+                    } ?: Text(
+                        text = "Seleccione un pedido para ver detalles",
                         style = MaterialTheme.typography.bodyLarge
                     )
                 }
@@ -146,9 +164,9 @@ fun RestaurantListScreen(
                         )
                     }
 
-                    restaurants.isEmpty() -> {
+                    pedidos.isEmpty() -> {
                         Text(
-                            text = "No hay restaurantes disponibles",
+                            text = "No hay pedidos disponibles",
                             style = MaterialTheme.typography.bodyLarge,
                             modifier = Modifier.padding(16.dp)
                         )
@@ -156,21 +174,16 @@ fun RestaurantListScreen(
 
                     else -> {
                         LazyColumn(
-                            contentPadding = PaddingValues(bottom = 16.dp)
+                            contentPadding = PaddingValues(bottom = 16.dp),
+                            state = rememberLazyListState()
                         ) {
-                            items(restaurants, key = { it.id }) { restaurant ->
+                            itemsIndexed(pedidos) { index, pedido ->
                                 AnimatedVisibility(
                                     visible = true,
                                     enter = fadeIn() + slideInVertically(),
                                     exit = fadeOut() + slideOutVertically()
                                 ) {
-                                    RestaurantCard(
-                                        restaurante = restaurant,
-                                        onClick = {
-                                            val restaurantJson = Gson().toJson(restaurant)
-                                            navController.navigate("restaurant_details/$clienteId/$restaurantJson")
-                                        }
-                                    )
+                                    OrdenCard(pedido = pedido)
                                 }
                             }
                         }

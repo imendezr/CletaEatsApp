@@ -1,6 +1,8 @@
 package com.example.cletaeatsapp.ui.screens
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -30,35 +32,29 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.example.cletaeatsapp.data.repository.UserType
 import com.example.cletaeatsapp.ui.components.RequireRole
+import com.example.cletaeatsapp.utils.format
 import com.example.cletaeatsapp.viewmodel.LoginViewModel
-import com.example.cletaeatsapp.viewmodel.RepartidorQuejasUiState
-import com.example.cletaeatsapp.viewmodel.RepartidorQuejasViewModel
+import com.example.cletaeatsapp.viewmodel.ReportsUiState
+import com.example.cletaeatsapp.viewmodel.ReportesViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RepartidorQuejasScreen(
+fun ReportesScreen(
     onOpenDrawer: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: RepartidorQuejasViewModel = hiltViewModel(),
+    viewModel: ReportesViewModel = hiltViewModel(),
     loginViewModel: LoginViewModel,
-    navController: NavController
+    navController: NavController? = null
 ) {
     RequireRole(
-        allowedRoles = setOf(UserType.RepartidorUser::class),
-        navController = navController,
+        allowedRoles = setOf(UserType.AdminUser::class),
+        navController = navController ?: return,
         loginViewModel = loginViewModel
     ) {
-        val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = {
-                        Text(
-                            "Quejas de Repartidores",
-                            style = MaterialTheme.typography.headlineSmall
-                        )
-                    },
+                    title = { Text("Reportes", style = MaterialTheme.typography.headlineSmall) },
                     navigationIcon = {
                         IconButton(onClick = onOpenDrawer) {
                             Icon(Icons.Default.Menu, contentDescription = "Abrir menú")
@@ -82,14 +78,15 @@ fun RepartidorQuejasScreen(
                     .padding(innerPadding)
                     .padding(16.dp)
             ) {
+                val uiState by viewModel.uiState.collectAsStateWithLifecycle()
                 when (val state = uiState) {
-                    is RepartidorQuejasUiState.Loading -> {
+                    is ReportsUiState.Loading -> {
                         CircularProgressIndicator(
                             modifier = Modifier.align(Alignment.CenterHorizontally)
                         )
                     }
 
-                    is RepartidorQuejasUiState.Error -> {
+                    is ReportsUiState.Error -> {
                         Text(
                             text = state.message,
                             color = MaterialTheme.colorScheme.error,
@@ -97,48 +94,36 @@ fun RepartidorQuejasScreen(
                         )
                     }
 
-                    is RepartidorQuejasUiState.Success -> {
+                    is ReportsUiState.Success -> {
                         Text(
-                            text = "Quejas por Repartidor",
+                            text = "Ingresos por Restaurante",
                             style = MaterialTheme.typography.headlineMedium,
                             color = MaterialTheme.colorScheme.primary
                         )
                         Spacer(modifier = Modifier.height(16.dp))
+
                         LazyColumn {
-                            items(state.repartidores, key = { it.id }) { repartidor ->
+                            items(
+                                state.revenueByRestaurant.entries.toList(),
+                                key = { it.key }) { (name, revenue) ->
                                 Card(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(vertical = 4.dp),
                                     shape = MaterialTheme.shapes.medium
                                 ) {
-                                    Column(
+                                    Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .padding(16.dp)
+                                            .padding(16.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
                                         Text(
-                                            text = repartidor.name,
-                                            style = MaterialTheme.typography.titleMedium
+                                            text = name,
+                                            style = MaterialTheme.typography.bodyMedium
                                         )
-                                        Spacer(modifier = Modifier.height(8.dp))
-                                        if (repartidor.quejas.isEmpty()) {
-                                            Text(
-                                                text = "Sin quejas",
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        } else {
-                                            repartidor.quejas.forEachIndexed { index, queja ->
-                                                Text(
-                                                    text = "${index + 1}. $queja",
-                                                    style = MaterialTheme.typography.bodyMedium
-                                                )
-                                            }
-                                        }
-                                        Spacer(modifier = Modifier.height(8.dp))
                                         Text(
-                                            text = "Amonestaciones: ${repartidor.amonestaciones}",
+                                            text = "₡${revenue.format(2)}",
                                             style = MaterialTheme.typography.bodyMedium,
                                             color = MaterialTheme.colorScheme.primary
                                         )

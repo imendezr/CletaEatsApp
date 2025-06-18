@@ -15,7 +15,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
@@ -32,6 +32,7 @@ import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSiz
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -41,24 +42,38 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.example.cletaeatsapp.data.model.Pedido
-import com.example.cletaeatsapp.ui.components.OrderCard
+import com.example.cletaeatsapp.data.repository.UserType
+import com.example.cletaeatsapp.ui.components.OrdenCard
 import com.example.cletaeatsapp.viewmodel.LoginViewModel
-import com.example.cletaeatsapp.viewmodel.OrderViewModel
+import com.example.cletaeatsapp.viewmodel.RepartidorOrdenViewModel
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
-fun OrdersScreen(
+fun RepartidorOrdenesScreen(
+    repartidorId: String,
     onOpenDrawer: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: OrderViewModel = hiltViewModel(),
+    viewModel: RepartidorOrdenViewModel = hiltViewModel(),
     loginViewModel: LoginViewModel,
     navController: NavController
 ) {
-    val pedidos by viewModel.pedidos
-    val isLoading by viewModel.isLoading
-    val errorMessage by viewModel.errorMessage
+    val userType by loginViewModel.userType.collectAsStateWithLifecycle()
+    // Role validation
+    if (userType !is UserType.RepartidorUser) {
+        LaunchedEffect(Unit) {
+            navController.navigate("login") {
+                popUpTo(0) { inclusive = true }
+            }
+        }
+        return
+    }
+
+    val pedidos by viewModel.getPedidosForRepartidor(repartidorId).collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val activity = context as? Activity ?: throw IllegalStateException("Context is not an Activity")
     val windowSizeClass = calculateWindowSizeClass(activity)
@@ -69,7 +84,7 @@ fun OrdersScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text("Pedidos", style = MaterialTheme.typography.headlineSmall) },
+                title = { Text("Mis Pedidos", style = MaterialTheme.typography.headlineSmall) },
                 navigationIcon = {
                     IconButton(onClick = onOpenDrawer) {
                         Icon(Icons.Default.Menu, contentDescription = "Abrir menú")
@@ -100,21 +115,22 @@ fun OrdersScreen(
                     contentPadding = PaddingValues(bottom = 16.dp),
                     state = rememberLazyListState()
                 ) {
-                    items(pedidos, key = { it.id }) { pedido ->
+                    itemsIndexed(pedidos) { index, pedido ->
                         AnimatedVisibility(
                             visible = true,
                             enter = fadeIn() + slideInVertically(),
                             exit = fadeOut() + slideOutVertically()
                         ) {
-                            OrderCard(
+                            OrdenCard(
                                 pedido = pedido,
                                 onMarkDelivered = {
                                     if (pedido.estado != "entregado") {
                                         viewModel.updateOrderStatus(pedido.id, "entregado")
-                                        navController.navigate("feedback/${pedido.id}")
+                                        navController.navigate("repartidor_quejas")
                                     }
                                 },
-                                onClick = { selectedPedido = pedido }
+                                onClick = { selectedPedido = pedido },
+                                isRepartidor = true
                             )
                         }
                     }
@@ -128,14 +144,15 @@ fun OrdersScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     selectedPedido?.let { pedido ->
-                        OrderCard(
+                        OrdenCard(
                             pedido = pedido,
                             onMarkDelivered = {
                                 if (pedido.estado != "entregado") {
                                     viewModel.updateOrderStatus(pedido.id, "entregado")
-                                    navController.navigate("feedback/${pedido.id}")
+                                    navController.navigate("repartidor_quejas")
                                 }
-                            }
+                            },
+                            isRepartidor = true
                         )
                     } ?: Text(
                         text = "Seleccione un pedido para ver detalles",
@@ -166,7 +183,7 @@ fun OrdersScreen(
 
                     pedidos.isEmpty() -> {
                         Text(
-                            text = "No hay pedidos disponibles",
+                            text = "No hay pedidos asignados",
                             style = MaterialTheme.typography.bodyLarge,
                             modifier = Modifier.padding(16.dp)
                         )
@@ -177,20 +194,21 @@ fun OrdersScreen(
                             contentPadding = PaddingValues(bottom = 16.dp),
                             state = rememberLazyListState()
                         ) {
-                            items(pedidos, key = { it.id }) { pedido ->
+                            itemsIndexed(pedidos) { index, pedido ->
                                 AnimatedVisibility(
                                     visible = true,
                                     enter = fadeIn() + slideInVertically(),
                                     exit = fadeOut() + slideOutVertically()
                                 ) {
-                                    OrderCard(
+                                    OrdenCard(
                                         pedido = pedido,
                                         onMarkDelivered = {
                                             if (pedido.estado != "entregado") {
                                                 viewModel.updateOrderStatus(pedido.id, "entregado")
-                                                navController.navigate("feedback/${pedido.id}")
+                                                navController.navigate("repartidor_quejas")
                                             }
-                                        }
+                                        },
+                                        isRepartidor = true
                                     )
                                 }
                             }

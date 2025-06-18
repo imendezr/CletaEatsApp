@@ -27,11 +27,12 @@ import com.example.cletaeatsapp.data.model.Pedido
 import java.util.Locale
 
 @Composable
-fun OrderCard(
+fun OrdenCard(
     modifier: Modifier = Modifier,
     pedido: Pedido,
-    onMarkDelivered: () -> Unit,
-    onClick: () -> Unit = {}
+    onMarkDelivered: () -> Unit = {},
+    onClick: () -> Unit = {},
+    isRepartidor: Boolean = false
 ) {
     Card(
         modifier = modifier
@@ -92,9 +93,7 @@ fun OrderCard(
                     Text(
                         text = "Estado: ${
                             pedido.estado.replaceFirstChar {
-                                if (it.isLowerCase()) it.titlecase(
-                                    Locale.getDefault()
-                                ) else it.toString()
+                                if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString()
                             }
                         }",
                         style = MaterialTheme.typography.bodyMedium
@@ -110,7 +109,7 @@ fun OrderCard(
                         )
                     }
                 }
-                if (pedido.estado != "entregado") {
+                if (isRepartidor && pedido.estado != "entregado") {
                     OutlinedButton(
                         onClick = onMarkDelivered,
                         modifier = Modifier.align(Alignment.CenterVertically)

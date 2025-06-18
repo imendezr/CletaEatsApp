@@ -1,7 +1,6 @@
 package com.example.cletaeatsapp
 
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -48,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.rememberNavController
+import com.example.cletaeatsapp.data.repository.UserType
 import com.example.cletaeatsapp.ui.navigation.NavGraph
 import com.example.cletaeatsapp.ui.theme.CletaEatsAppTheme
 import com.example.cletaeatsapp.viewmodel.LoginViewModel
@@ -76,6 +76,7 @@ fun MainNavDrawer() {
     val scope = rememberCoroutineScope()
     val loginViewModel: LoginViewModel = hiltViewModel()
     val cedula by loginViewModel.cedulaFlow.collectAsStateWithLifecycle(initialValue = "")
+    val userType by loginViewModel.userType.collectAsStateWithLifecycle(initialValue = null)
     val navigationEvent by loginViewModel.navigationEvent.collectAsStateWithLifecycle(initialValue = null)
     val windowInfo = LocalWindowInfo.current
     val context = LocalContext.current
@@ -104,13 +105,48 @@ fun MainNavDrawer() {
                 loginViewModel.clearNavigationEvent()
             }
 
-            null -> Unit
+            is NavigationEvent.NavigateToClientHome -> {
+                navController.navigate("restaurants/${(navigationEvent as NavigationEvent.NavigateToClientHome).cedula}") {
+                    popUpTo(0) { inclusive = true }
+                    launchSingleTop = true
+                }
+                loginViewModel.clearNavigationEvent()
+            }
+
+            is NavigationEvent.NavigateToRepartidorOrders -> {
+                navController.navigate("repartidor_orders/${(navigationEvent as NavigationEvent.NavigateToRepartidorOrders).cedula}") {
+                    popUpTo(0) { inclusive = true }
+                    launchSingleTop = true
+                }
+                loginViewModel.clearNavigationEvent()
+            }
+
+            is NavigationEvent.NavigateToAdminReports -> {
+                navController.navigate("reports") {
+                    popUpTo(0) { inclusive = true }
+                    launchSingleTop = true
+                }
+                loginViewModel.clearNavigationEvent()
+            }
+
+            else -> Unit
         }
     }
 
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
+            // Role validation
+            LaunchedEffect(userType) {
+                if (userType == null) {
+                    navController.navigate("login") {
+                        popUpTo(0) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }
+            }
+            if (userType == null) return@ModalNavigationDrawer
+
             Column(
                 modifier = Modifier
                     .background(MaterialTheme.colorScheme.surface)
@@ -138,99 +174,122 @@ fun MainNavDrawer() {
                         }
                     }
                 )
-                DrawerItem(
-                    text = "Perfil",
-                    icon = Icons.Default.Person,
-                    contentDescription = "Perfil de usuario",
-                    tag = "drawer_profile",
-                    onClick = {
-                        scope.launch {
-                            drawerState.close()
-                            navController.navigate("profile")
-                        }
-                    }
-                )
-                DrawerItem(
-                    text = "Restaurantes",
-                    icon = Icons.Default.Restaurant,
-                    contentDescription = "Lista de restaurantes",
-                    tag = "drawer_restaurants",
-                    onClick = {
-                        scope.launch {
-                            drawerState.close()
-                            if (cedula.isBlank()) {
-                                Log.e("MainNavDrawer", "Cedula is empty, redirecting to login")
-                                navController.navigate("login")
-                            } else {
-                                Log.d(
-                                    "MainNavDrawer",
-                                    "Navigating to restaurants with cedula: $cedula"
-                                )
-                                navController.navigate("restaurants/$cedula")
+                when (userType) {
+                    is UserType.ClientUser -> {
+                        DrawerItem(
+                            text = "Perfil",
+                            icon = Icons.Default.Person,
+                            contentDescription = "Perfil de usuario",
+                            tag = "drawer_profile",
+                            onClick = {
+                                scope.launch {
+                                    drawerState.close()
+                                    navController.navigate("profile")
+                                }
                             }
-                        }
+                        )
+                        DrawerItem(
+                            text = "Restaurantes",
+                            icon = Icons.Default.Restaurant,
+                            contentDescription = "Lista de restaurantes",
+                            tag = "drawer_restaurants",
+                            onClick = {
+                                scope.launch {
+                                    drawerState.close()
+                                    if (cedula.isBlank()) {
+                                        navController.navigate("login")
+                                    } else {
+                                        navController.navigate("restaurants/$cedula")
+                                    }
+                                }
+                            }
+                        )
+                        DrawerItem(
+                            text = "Pedidos",
+                            icon = Icons.Default.ShoppingCart,
+                            contentDescription = "Lista de pedidos",
+                            tag = "drawer_orders",
+                            onClick = {
+                                scope.launch {
+                                    drawerState.close()
+                                    navController.navigate("orders")
+                                }
+                            }
+                        )
                     }
-                )
-                DrawerItem(
-                    text = "Pedidos",
-                    icon = Icons.Default.ShoppingCart,
-                    contentDescription = "Lista de pedidos",
-                    tag = "drawer_orders",
-                    onClick = {
-                        scope.launch {
-                            drawerState.close()
-                            navController.navigate("orders")
-                        }
+
+                    is UserType.RepartidorUser -> {
+                        DrawerItem(
+                            text = "Perfil",
+                            icon = Icons.Default.Person,
+                            contentDescription = "Perfil de usuario",
+                            tag = "drawer_profile",
+                            onClick = {
+                                scope.launch {
+                                    drawerState.close()
+                                    navController.navigate("profile")
+                                }
+                            }
+                        )
+                        DrawerItem(
+                            text = "Mis Pedidos",
+                            icon = Icons.Default.DeliveryDining,
+                            contentDescription = "Pedidos asignados",
+                            tag = "drawer_repartidor_orders",
+                            onClick = {
+                                scope.launch {
+                                    drawerState.close()
+                                    if (cedula.isBlank()) {
+                                        navController.navigate("login")
+                                    } else {
+                                        navController.navigate("repartidor_orders/$cedula")
+                                    }
+                                }
+                            }
+                        )
+                        DrawerItem(
+                            text = "Quejas",
+                            icon = Icons.Default.Warning,
+                            contentDescription = "Quejas de repartidores",
+                            tag = "drawer_repartidor_quejas",
+                            onClick = {
+                                scope.launch {
+                                    drawerState.close()
+                                    navController.navigate("repartidor_quejas")
+                                }
+                            }
+                        )
                     }
-                )
-                DrawerItem(
-                    text = "Reportes",
-                    icon = Icons.Default.BarChart,
-                    contentDescription = "Reportes y estadísticas",
-                    tag = "drawer_reports",
-                    onClick = {
-                        scope.launch {
-                            drawerState.close()
-                            navController.navigate("reports")
-                        }
+
+                    is UserType.AdminUser -> {
+                        DrawerItem(
+                            text = "Reportes",
+                            icon = Icons.Default.BarChart,
+                            contentDescription = "Reportes administrativos",
+                            tag = "drawer_reports",
+                            onClick = {
+                                scope.launch {
+                                    drawerState.close()
+                                    navController.navigate("reports")
+                                }
+                            }
+                        )
+                        DrawerItem(
+                            text = "Registrar Restaurante",
+                            icon = Icons.Default.Restaurant,
+                            contentDescription = "Registrar nuevo restaurante",
+                            tag = "drawer_register_restaurant",
+                            onClick = {
+                                scope.launch {
+                                    drawerState.close()
+                                    navController.navigate("register_restaurant")
+                                }
+                            }
+                        )
                     }
-                )
-                DrawerItem(
-                    text = "Registrar Restaurante",
-                    icon = Icons.Default.Restaurant,
-                    contentDescription = "Registrar restaurante",
-                    tag = "drawer_register_restaurant",
-                    onClick = {
-                        scope.launch {
-                            drawerState.close()
-                            navController.navigate("register_restaurant")
-                        }
-                    }
-                )
-                DrawerItem(
-                    text = "Registrar Repartidor",
-                    icon = Icons.Default.DeliveryDining,
-                    contentDescription = "Registrar repartidor",
-                    tag = "drawer_register_repartidor",
-                    onClick = {
-                        scope.launch {
-                            drawerState.close()
-                            navController.navigate("register_repartidor")
-                        }
-                    }
-                )
-                DrawerItem(
-                    text = "Quejas de Repartidores",
-                    icon = Icons.Default.Warning,
-                    contentDescription = "Quejas de repartidores",
-                    tag = "drawer_repartidor_quejas",
-                    onClick = {
-                        scope.launch {
-                            drawerState.close()
-                            navController.navigate("repartidor_quejas")
-                        }
-                    }
-                )
+
+                    else -> Unit
+                }
             }
         }
     ) {

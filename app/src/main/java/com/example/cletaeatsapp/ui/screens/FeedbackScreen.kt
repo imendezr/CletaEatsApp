@@ -40,9 +40,13 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.example.cletaeatsapp.data.model.Pedido
+import com.example.cletaeatsapp.data.repository.UserType
+import com.example.cletaeatsapp.ui.components.RequireRole
 import com.example.cletaeatsapp.viewmodel.FeedbackViewModel
+import com.example.cletaeatsapp.viewmodel.LoginViewModel
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
@@ -51,90 +55,98 @@ fun FeedbackScreen(
     onFeedbackSubmitted: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: FeedbackViewModel = hiltViewModel(),
-    navController: NavController
+    navController: NavController,
+    loginViewModel: LoginViewModel
 ) {
-    val rating by viewModel.rating
-    val comentario by viewModel.comentario
-    val isLoading by viewModel.isLoading
-    val errorMessage by viewModel.errorMessage
-    val context = LocalContext.current
-    val windowSizeClass = calculateWindowSizeClass(context as androidx.activity.ComponentActivity)
-    val isExpanded = windowSizeClass.widthSizeClass == WindowWidthSizeClass.Expanded
-    val padding = if (isExpanded) 32.dp else 16.dp
+    RequireRole(
+        allowedRoles = setOf(UserType.ClientUser::class),
+        navController = navController,
+        loginViewModel = loginViewModel
+    ) {
+        val rating by viewModel.rating
+        val comentario by viewModel.comentario
+        val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+        val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
+        val context = LocalContext.current
+        val windowSizeClass =
+            calculateWindowSizeClass(context as androidx.activity.ComponentActivity)
+        val isExpanded = windowSizeClass.widthSizeClass == WindowWidthSizeClass.Expanded
+        val padding = if (isExpanded) 32.dp else 16.dp
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Calificar Repartidor") },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text("Calificar Repartidor") },
+                    navigationIcon = {
+                        IconButton(onClick = { navController.popBackStack() }) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
+                        }
+                    }
+                )
+            }
+        ) { innerPadding ->
+            Column(
+                modifier = modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(padding),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "Califique al repartidor",
+                    style = MaterialTheme.typography.headlineMedium,
+                    modifier = Modifier.semantics { heading() }
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                AnimatedContent(
+                    targetState = isLoading,
+                    transitionSpec = { fadeIn() togetherWith fadeOut() },
+                    label = "feedback_form_transition"
+                ) { loading ->
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        RatingBar(
+                            rating = rating,
+                            onRatingChanged = { viewModel.rating.intValue = it },
+                            enabled = !loading
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = comentario,
+                            onValueChange = { viewModel.comentario.value = it },
+                            label = { Text("Comentario o queja") },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = !loading,
+                            isError = errorMessage != null && comentario.isBlank()
+                        )
                     }
                 }
-            )
-        }
-    ) { innerPadding ->
-        Column(
-            modifier = modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(padding),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = "Califique al repartidor",
-                style = MaterialTheme.typography.headlineMedium,
-                modifier = Modifier.semantics { heading() }
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            AnimatedContent(
-                targetState = isLoading,
-                transitionSpec = { fadeIn() togetherWith fadeOut() },
-                label = "feedback_form_transition"
-            ) { loading ->
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    RatingBar(
-                        rating = rating,
-                        onRatingChanged = { viewModel.rating.intValue = it },
-                        enabled = !loading
-                    )
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(
+                    onClick = {
+                        viewModel.submitFeedback(pedido.repartidorId, onFeedbackSubmitted)
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isLoading
+                ) {
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text("Enviar")
+                    }
+                }
+                errorMessage?.let {
                     Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = comentario,
-                        onValueChange = { viewModel.comentario.value = it },
-                        label = { Text("Comentario o queja") },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = !loading,
-                        isError = errorMessage != null && comentario.isBlank()
+                    Text(
+                        text = it,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodyMedium
                     )
                 }
-            }
-            Spacer(modifier = Modifier.height(16.dp))
-            Button(
-                onClick = {
-                    viewModel.submitFeedback(pedido.repartidorId, onFeedbackSubmitted)
-                },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !isLoading
-            ) {
-                if (isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        strokeWidth = 2.dp
-                    )
-                } else {
-                    Text("Enviar")
-                }
-            }
-            errorMessage?.let {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = it,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodyMedium
-                )
             }
         }
     }

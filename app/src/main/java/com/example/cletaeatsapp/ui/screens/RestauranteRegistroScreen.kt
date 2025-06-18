@@ -28,6 +28,7 @@ import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSiz
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,23 +37,25 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import com.example.cletaeatsapp.viewmodel.RepartidorRegistrationViewModel
+import com.example.cletaeatsapp.data.repository.UserType
+import com.example.cletaeatsapp.viewmodel.LoginViewModel
+import com.example.cletaeatsapp.viewmodel.RestauranteRegistroViewModel
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
-fun RepartidorRegistrationScreen(
+fun RestauranteRegistroScreen(
     navController: NavController,
     modifier: Modifier = Modifier,
-    viewModel: RepartidorRegistrationViewModel = hiltViewModel()
+    viewModel: RestauranteRegistroViewModel = hiltViewModel(),
+    loginViewModel: LoginViewModel = hiltViewModel()
 ) {
-    val cedula by viewModel.cedula
+    val userType by loginViewModel.userType.collectAsStateWithLifecycle()
+    val cedulaJuridica by viewModel.cedulaJuridica
     val nombre by viewModel.nombre
     val direccion by viewModel.direccion
-    val telefono by viewModel.telefono
-    val correo by viewModel.correo
-    val distancia by viewModel.distancia
-    val costoPorKm by viewModel.costoPorKm
+    val tipoComida by viewModel.tipoComida
     val errorMessage by viewModel.errorMessage
     val isLoading by viewModel.isLoading
     val context = LocalContext.current
@@ -60,10 +63,22 @@ fun RepartidorRegistrationScreen(
     val isExpanded = windowSizeClass.widthSizeClass == WindowWidthSizeClass.Expanded
     val padding = if (isExpanded) 32.dp else 16.dp
 
+    // Restrict access to admins only
+    LaunchedEffect(userType) {
+        if (userType !is UserType.AdminUser) {
+            navController.navigate("login") {
+                popUpTo(0) { inclusive = true }
+                launchSingleTop = true
+            }
+        }
+    }
+
+    if (userType !is UserType.AdminUser) return
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Registrar Repartidor") },
+                title = { Text("Registrar Restaurante") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
@@ -81,7 +96,7 @@ fun RepartidorRegistrationScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "Registro de Repartidor",
+                text = "Registro de Restaurante",
                 style = MaterialTheme.typography.headlineMedium,
                 modifier = Modifier.semantics { heading() }
             )
@@ -89,16 +104,16 @@ fun RepartidorRegistrationScreen(
             AnimatedContent(
                 targetState = isLoading,
                 transitionSpec = { fadeIn() togetherWith fadeOut() },
-                label = "repartidor_form_transition"
+                label = "restaurant_form_transition"
             ) { loading ->
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     OutlinedTextField(
-                        value = cedula,
-                        onValueChange = { viewModel.cedula.value = it },
-                        label = { Text("Cédula") },
+                        value = cedulaJuridica,
+                        onValueChange = { viewModel.cedulaJuridica.value = it },
+                        label = { Text("Cédula Jurídica") },
                         modifier = Modifier.fillMaxWidth(),
                         enabled = !loading,
-                        isError = errorMessage != null && cedula.isBlank()
+                        isError = errorMessage != null && cedulaJuridica.isBlank()
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(
@@ -120,39 +135,12 @@ fun RepartidorRegistrationScreen(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(
-                        value = telefono,
-                        onValueChange = { viewModel.telefono.value = it },
-                        label = { Text("Teléfono") },
+                        value = tipoComida,
+                        onValueChange = { viewModel.tipoComida.value = it },
+                        label = { Text("Tipo de Comida") },
                         modifier = Modifier.fillMaxWidth(),
                         enabled = !loading,
-                        isError = errorMessage != null && telefono.isBlank()
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = correo,
-                        onValueChange = { viewModel.correo.value = it },
-                        label = { Text("Correo") },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = !loading,
-                        isError = errorMessage != null && correo.isBlank()
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = distancia,
-                        onValueChange = { viewModel.distancia.value = it },
-                        label = { Text("Distancia (km)") },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = !loading,
-                        isError = errorMessage != null && distancia.isBlank()
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = costoPorKm,
-                        onValueChange = { viewModel.costoPorKm.value = it },
-                        label = { Text("Costo por km (₡)") },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = !loading,
-                        isError = errorMessage != null && costoPorKm.isBlank()
+                        isError = errorMessage != null && tipoComida.isBlank()
                     )
                 }
             }
@@ -160,9 +148,7 @@ fun RepartidorRegistrationScreen(
             Button(
                 onClick = {
                     viewModel.register {
-                        navController.navigate("restaurants/0") {
-                            popUpTo("register_repartidor") { inclusive = true }
-                        }
+                        navController.popBackStack()
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),

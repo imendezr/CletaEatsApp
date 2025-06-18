@@ -1,23 +1,31 @@
 package com.example.cletaeatsapp.viewmodel
 
-import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.cletaeatsapp.data.model.Pedido
 import com.example.cletaeatsapp.data.repository.CletaEatsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class OrderViewModel @Inject constructor(
+class ClienteOrdenViewModel @Inject constructor(
     private val repository: CletaEatsRepository
 ) : ViewModel() {
-    var pedidos = mutableStateOf<List<Pedido>>(emptyList())
-    var isLoading = mutableStateOf(false)
-    var errorMessage = mutableStateOf<String?>(null)
-    var selectedCombos = mutableStateOf<List<Int>>(emptyList())
+    private val _pedidos = MutableStateFlow<List<Pedido>>(emptyList())
+    val pedidos = _pedidos.asStateFlow()
+
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading = _isLoading.asStateFlow()
+
+    private val _errorMessage = MutableStateFlow<String?>(null)
+    val errorMessage = _errorMessage.asStateFlow()
+
+    private val _selectedCombos = MutableStateFlow<List<Int>>(emptyList())
+    val selectedCombos = _selectedCombos.asStateFlow()
 
     init {
         loadPedidosWithRestaurantNames()
@@ -25,7 +33,7 @@ class OrderViewModel @Inject constructor(
 
     private fun loadPedidosWithRestaurantNames() {
         viewModelScope.launch {
-            isLoading.value = true
+            _isLoading.value = true
             try {
                 val pedidosDeferred = async { repository.getPedidos() }
                 val restaurantesDeferred =
@@ -38,78 +46,78 @@ class OrderViewModel @Inject constructor(
                             ?: pedido.restauranteId
                     )
                 }
-                this@OrderViewModel.pedidos.value = updatedPedidos
-                errorMessage.value = null
+                _pedidos.value = updatedPedidos
+                _errorMessage.value = null
             } catch (e: Exception) {
-                errorMessage.value = "Error al cargar pedidos: ${e.message}"
+                _errorMessage.value = "Error al cargar pedidos: ${e.message}"
             } finally {
-                isLoading.value = false
+                _isLoading.value = false
             }
         }
     }
 
     fun getPedidoById(pedidoId: String): Pedido? {
-        return pedidos.value.find { it.id == pedidoId }
+        return _pedidos.value.find { it.id == pedidoId }
     }
 
     fun addCombo(combo: Int) {
-        if (combo in 1..9 && !selectedCombos.value.contains(combo)) {
-            val currentCombos = selectedCombos.value.toMutableList()
+        if (combo in 1..9 && !_selectedCombos.value.contains(combo)) {
+            val currentCombos = _selectedCombos.value.toMutableList()
             currentCombos.add(combo)
-            selectedCombos.value = currentCombos
+            _selectedCombos.value = currentCombos
         }
     }
 
     fun removeCombo(combo: Int) {
-        val currentCombos = selectedCombos.value.toMutableList()
+        val currentCombos = _selectedCombos.value.toMutableList()
         currentCombos.remove(combo)
-        selectedCombos.value = currentCombos
+        _selectedCombos.value = currentCombos
     }
 
     fun createOrder(clienteId: String, restauranteId: String, onSuccess: () -> Unit) {
         viewModelScope.launch {
-            if (selectedCombos.value.isEmpty()) {
-                errorMessage.value = "Seleccione al menos un combo."
+            if (_selectedCombos.value.isEmpty()) {
+                _errorMessage.value = "Seleccione al menos un combo."
                 return@launch
             }
-            if (selectedCombos.value.any { it !in 1..9 }) {
-                errorMessage.value = "Combos inválidos seleccionados."
+            if (_selectedCombos.value.any { it !in 1..9 }) {
+                _errorMessage.value = "Combos inválidos seleccionados."
                 return@launch
             }
-            isLoading.value = true
+            _isLoading.value = true
             try {
-                val pedido = repository.createOrder(clienteId, restauranteId, selectedCombos.value)
+                val pedido = repository.createOrder(clienteId, restauranteId, _selectedCombos.value)
                 if (pedido == null) {
-                    errorMessage.value = "No hay repartidores disponibles."
+                    _errorMessage.value = "No hay repartidores disponibles."
                 } else {
-                    errorMessage.value = null
-                    selectedCombos.value = emptyList()
+                    _errorMessage.value = null
+                    _selectedCombos.value = emptyList()
                     loadPedidosWithRestaurantNames()
                     onSuccess()
                 }
             } catch (e: Exception) {
-                errorMessage.value = "Error al crear pedido: ${e.message}"
+                _errorMessage.value = "Error al crear pedido: ${e.message}"
             } finally {
-                isLoading.value = false
+                _isLoading.value = false
             }
         }
     }
 
     fun updateOrderStatus(orderId: String, newStatus: String) {
         viewModelScope.launch {
-            isLoading.value = true
+            _isLoading.value = true
             try {
                 val success = repository.updateOrderStatus(orderId, newStatus)
                 if (success) {
-                    errorMessage.value = null
+                    _errorMessage.value = null
                     loadPedidosWithRestaurantNames()
                 } else {
-                    errorMessage.value = "No se pudo actualizar el pedido."
+                    _errorMessage.value = "No se pudo actualizar el pedido."
                 }
             } catch (e: Exception) {
-                errorMessage.value = "Error al actualizar pedido: ${e.message}"
+                _errorMessage.value = "Error al actualizar pedido: ${e.message}"
             } finally {
-                isLoading.value = false
+                _isLoading.value = false
             }
         }
     }

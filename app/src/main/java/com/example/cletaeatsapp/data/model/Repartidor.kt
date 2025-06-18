@@ -7,9 +7,10 @@ data class Repartidor(
     val direccion: String,
     val telefono: String,
     val correo: String,
-    val estado: String, // "disponible" o "ocupado"
+    val estado: String, // "disponible" o "ocupado" o "inactivo"
     val distancia: Double,
     val costoPorKm: Double, // 1000 colones/km (días hábiles), 1500 colones/km (feriados)
     val amonestaciones: Int,
-    val quejas: List<String>
+    val quejas: List<String>,
+    val contrasena: String
 )

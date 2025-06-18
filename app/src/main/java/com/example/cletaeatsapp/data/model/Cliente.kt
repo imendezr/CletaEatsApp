@@ -7,5 +7,6 @@ data class Cliente(
     val direccion: String,
     val telefono: String,
     val correo: String,
-    val estado: String // "activo" o "suspendido"
+    val estado: String, // "activo" o "suspendido"
+    val contrasena: String
 )

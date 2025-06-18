@@ -6,6 +6,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.cletaeatsapp.data.repository.CletaEatsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -15,31 +17,33 @@ class FeedbackViewModel @Inject constructor(
 ) : ViewModel() {
     var rating = mutableIntStateOf(0)
     var comentario = mutableStateOf("")
-    var isLoading = mutableStateOf(false)
-    var errorMessage = mutableStateOf<String?>(null)
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading = _isLoading.asStateFlow()
+    private val _errorMessage = MutableStateFlow<String?>(null)
+    val errorMessage = _errorMessage.asStateFlow()
 
     fun submitFeedback(repartidorId: String?, onSuccess: () -> Unit) {
         if (repartidorId == null) {
-            errorMessage.value = "Error: Repartidor no asignado"
+            _errorMessage.value = "Error: Repartidor no asignado"
             return
         }
         if (rating.intValue == 0) {
-            errorMessage.value = "Por favor seleccione una calificación"
+            _errorMessage.value = "Por favor seleccione una calificación"
             return
         }
         viewModelScope.launch {
-            isLoading.value = true
+            _isLoading.value = true
             try {
                 repository.addQueja(
                     repartidorId = repartidorId,
                     queja = comentario.value,
                     addAmonestacion = rating.intValue < 3
                 )
-                isLoading.value = false
+                _isLoading.value = false
                 onSuccess()
             } catch (e: Exception) {
-                isLoading.value = false
-                errorMessage.value = "Error al enviar feedback: ${e.message}"
+                _isLoading.value = false
+                _errorMessage.value = "Error al enviar feedback: ${e.message}"
             }
         }
     }

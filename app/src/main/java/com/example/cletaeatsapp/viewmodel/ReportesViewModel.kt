@@ -12,7 +12,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class ReportsViewModel @Inject constructor(
+class ReportesViewModel @Inject constructor(
     private val repository: CletaEatsRepository
 ) : ViewModel() {
     private val _uiState = MutableStateFlow<ReportsUiState>(ReportsUiState.Loading)

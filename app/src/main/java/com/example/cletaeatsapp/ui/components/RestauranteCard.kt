@@ -18,7 +18,7 @@ import coil.compose.AsyncImage
 import com.example.cletaeatsapp.data.model.Restaurante
 
 @Composable
-fun RestaurantCard(
+fun RestauranteCard(
     restaurante: Restaurante,
     onClick: () -> Unit,
     modifier: Modifier = Modifier

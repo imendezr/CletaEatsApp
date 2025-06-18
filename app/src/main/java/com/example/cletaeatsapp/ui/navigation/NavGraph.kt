@@ -9,18 +9,20 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.example.cletaeatsapp.data.model.Pedido
 import com.example.cletaeatsapp.data.model.Restaurante
+import com.example.cletaeatsapp.data.repository.UserType
+import com.example.cletaeatsapp.ui.screens.ClienteOrdenesScreen
 import com.example.cletaeatsapp.ui.screens.FeedbackScreen
 import com.example.cletaeatsapp.ui.screens.LoginScreen
-import com.example.cletaeatsapp.ui.screens.OrdersScreen
-import com.example.cletaeatsapp.ui.screens.ProfileScreen
+import com.example.cletaeatsapp.ui.screens.PerfilScreen
+import com.example.cletaeatsapp.ui.screens.RegisterScreen
+import com.example.cletaeatsapp.ui.screens.RepartidorOrdenesScreen
 import com.example.cletaeatsapp.ui.screens.RepartidorQuejasScreen
-import com.example.cletaeatsapp.ui.screens.RepartidorRegistrationScreen
-import com.example.cletaeatsapp.ui.screens.ReportsScreen
-import com.example.cletaeatsapp.ui.screens.RestaurantDetailsScreen
-import com.example.cletaeatsapp.ui.screens.RestaurantListScreen
-import com.example.cletaeatsapp.ui.screens.RestaurantRegistrationScreen
+import com.example.cletaeatsapp.ui.screens.ReportesScreen
+import com.example.cletaeatsapp.ui.screens.RestauranteDetallesScreen
+import com.example.cletaeatsapp.ui.screens.RestauranteListadoScreen
+import com.example.cletaeatsapp.ui.screens.RestauranteRegistroScreen
+import com.example.cletaeatsapp.viewmodel.ClienteOrdenViewModel
 import com.example.cletaeatsapp.viewmodel.LoginViewModel
-import com.example.cletaeatsapp.viewmodel.OrderViewModel
 import com.google.gson.Gson
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -35,34 +37,69 @@ fun NavGraph(
     NavHost(navController = navController, startDestination = "login") {
         composable("login") {
             LoginScreen(
-                onLoginSuccess = { cedula ->
-                    Log.d("NavGraph", "Navigating to restaurants with cedula: $cedula")
-                    if (cedula.isNotBlank()) {
-                        scope.launch {
-                            loginViewModel.saveCedula(cedula)
-                            navController.navigate("restaurants/$cedula") {
-                                popUpTo(0) { inclusive = true }
+                navController = navController,
+                onLoginSuccess = { cedula: String, userType: UserType ->
+                    scope.launch {
+                        loginViewModel.saveCedula(cedula)
+                        when (userType) {
+                            is UserType.ClientUser -> navController.navigate("restaurants/$cedula") {
+                                popUpTo("login") { inclusive = true }
+                                launchSingleTop = true
+                            }
+
+                            is UserType.RepartidorUser -> navController.navigate("repartidor_orders/$cedula") {
+                                popUpTo("login") { inclusive = true }
+                                launchSingleTop = true
+                            }
+
+                            is UserType.AdminUser -> navController.navigate("reports") {
+                                popUpTo("login") { inclusive = true }
+                                launchSingleTop = true
+                            }
+
+                            else -> Unit
+                        }
+                    }
+                },
+                loginViewModel = loginViewModel
+            )
+        }
+        composable("register") {
+            RegisterScreen(
+                navController = navController,
+                onRegisterSuccess = { cedula: String, userType: UserType ->
+                    scope.launch {
+                        loginViewModel.saveCedula(cedula)
+                        when (userType) {
+                            is UserType.ClientUser -> navController.navigate("restaurants/$cedula") {
+                                popUpTo("register") { inclusive = true }
+                                launchSingleTop = true
+                            }
+
+                            is UserType.RepartidorUser -> navController.navigate("repartidor_orders/$cedula") {
+                                popUpTo("register") { inclusive = true }
+                                launchSingleTop = true
+                            }
+
+                            else -> navController.navigate("login") {
+                                popUpTo("register") { inclusive = true }
                                 launchSingleTop = true
                             }
                         }
-                    } else {
-                        Log.w("NavGraph", "Cedula is blank, navigation aborted")
                     }
                 }
             )
         }
         composable("restaurants/{clienteId}") { backStackEntry ->
             val clienteId = backStackEntry.arguments?.getString("clienteId") ?: ""
-            Log.d("NavGraph", "Entered restaurants route with clienteId: $clienteId")
-            if (clienteId.isBlank() && clienteId != "0") {
-                Log.w("NavGraph", "Blank clienteId, redirecting to login")
+            if (clienteId.isBlank()) {
                 navController.navigate("login") {
-                    popUpTo(0) { inclusive = true }
+                    popUpTo("login") { inclusive = true }
                     launchSingleTop = true
                 }
                 return@composable
             }
-            RestaurantListScreen(
+            RestauranteListadoScreen(
                 navController = navController,
                 clienteId = clienteId,
                 onOpenDrawer = { scope.launch { drawerState.open() } },
@@ -72,22 +109,19 @@ fun NavGraph(
         composable("restaurant_details/{clienteId}/{restauranteJson}") { backStackEntry ->
             val clienteId = backStackEntry.arguments?.getString("clienteId") ?: ""
             val restauranteJson = backStackEntry.arguments?.getString("restauranteJson") ?: ""
-            Log.d("NavGraph", "Entered restaurant_details with clienteId: $clienteId")
             if (clienteId.isBlank() || restauranteJson.isBlank()) {
-                Log.w("NavGraph", "Invalid clienteId or restauranteJson, redirecting to login")
                 navController.navigate("login") {
-                    popUpTo(0) { inclusive = true }
+                    popUpTo("login") { inclusive = true }
                     launchSingleTop = true
                 }
                 return@composable
             }
             val restaurante = parseRestaurante(restauranteJson)
             if (restaurante == null) {
-                Log.w("NavGraph", "Failed to parse restaurante, redirecting to restaurants")
                 navController.navigate("restaurants/$clienteId")
                 return@composable
             }
-            RestaurantDetailsScreen(
+            RestauranteDetallesScreen(
                 restaurante = restaurante,
                 clienteId = clienteId,
                 onOpenDrawer = { scope.launch { drawerState.open() } },
@@ -97,54 +131,36 @@ fun NavGraph(
             )
         }
         composable("profile") {
-            ProfileScreen(
+            PerfilScreen(
                 onOpenDrawer = { scope.launch { drawerState.open() } },
                 loginViewModel = loginViewModel,
                 navController = navController
             )
         }
         composable("orders") {
-            OrdersScreen(
+            ClienteOrdenesScreen(
                 onOpenDrawer = { scope.launch { drawerState.open() } },
                 loginViewModel = loginViewModel,
-                navController = navController
-            )
-        }
-        composable("reports") {
-            ReportsScreen(
-                onOpenDrawer = { scope.launch { drawerState.open() } },
-                loginViewModel = loginViewModel,
-                navController = navController
-            )
-        }
-        composable("register_restaurant") {
-            RestaurantRegistrationScreen(
-                navController = navController
-            )
-        }
-        composable("register_repartidor") {
-            RepartidorRegistrationScreen(
                 navController = navController
             )
         }
         composable("feedback/{pedidoId}") { backStackEntry ->
             val pedidoId = backStackEntry.arguments?.getString("pedidoId") ?: ""
             if (pedidoId.isBlank()) {
-                Log.w("NavGraph", "Invalid pedidoId, redirecting to orders")
                 navController.navigate("orders")
                 return@composable
             }
-            val orderViewModel: OrderViewModel = hiltViewModel()
-            val pedido: Pedido? = orderViewModel.getPedidoById(pedidoId)
+            val clienteOrdenViewModel: ClienteOrdenViewModel = hiltViewModel()
+            val pedido: Pedido? = clienteOrdenViewModel.getPedidoById(pedidoId)
             if (pedido == null) {
-                Log.w("NavGraph", "Pedido not found, redirecting to orders")
                 navController.navigate("orders")
                 return@composable
             }
             FeedbackScreen(
                 pedido = pedido,
                 onFeedbackSubmitted = { navController.navigate("orders") },
-                navController = navController
+                navController = navController,
+                loginViewModel = loginViewModel
             )
         }
         composable("repartidor_quejas") {
@@ -152,6 +168,35 @@ fun NavGraph(
                 onOpenDrawer = { scope.launch { drawerState.open() } },
                 loginViewModel = loginViewModel,
                 navController = navController
+            )
+        }
+        composable("repartidor_orders/{repartidorId}") { backStackEntry ->
+            val repartidorId = backStackEntry.arguments?.getString("repartidorId") ?: ""
+            if (repartidorId.isBlank()) {
+                navController.navigate("login") {
+                    popUpTo("login") { inclusive = true }
+                    launchSingleTop = true
+                }
+                return@composable
+            }
+            RepartidorOrdenesScreen(
+                repartidorId = repartidorId,
+                onOpenDrawer = { scope.launch { drawerState.open() } },
+                loginViewModel = loginViewModel,
+                navController = navController
+            )
+        }
+        composable("reports") {
+            ReportesScreen(
+                onOpenDrawer = { scope.launch { drawerState.open() } },
+                loginViewModel = loginViewModel,
+                navController = navController
+            )
+        }
+        composable("register_restaurant") {
+            RestauranteRegistroScreen(
+                navController = navController,
+                loginViewModel = loginViewModel
             )
         }
     }

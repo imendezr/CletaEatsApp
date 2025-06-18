@@ -69,10 +69,7 @@ dependencies {
     implementation(libs.hilt.android)
     implementation(libs.androidx.adaptive.layout.android)
     ksp(libs.hilt.android.compiler)
-    testImplementation(libs.junit)
-    androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
-    androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 }
