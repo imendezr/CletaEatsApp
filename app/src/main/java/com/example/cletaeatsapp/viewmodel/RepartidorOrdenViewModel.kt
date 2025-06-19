@@ -3,6 +3,8 @@ package com.example.cletaeatsapp.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.cletaeatsapp.data.model.Pedido
+import com.example.cletaeatsapp.data.model.Repartidor
+import com.example.cletaeatsapp.data.model.UserType
 import com.example.cletaeatsapp.data.repository.CletaEatsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
@@ -58,7 +60,7 @@ class RepartidorOrdenViewModel @Inject constructor(
         return filteredPedidos.asStateFlow()
     }
 
-    private fun loadPedidosWithRestaurantNames() {
+    internal fun loadPedidosWithRestaurantNames() {
         viewModelScope.launch {
             _isLoading.value = true
             try {
@@ -86,17 +88,32 @@ class RepartidorOrdenViewModel @Inject constructor(
         }
     }
 
-    fun updateOrderStatus(orderId: String, newStatus: String) {
+    fun updateOrderStatus(orderId: String, newStatus: String, repartidorId: String) {
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                if (orderId.isBlank()) {
-                    Timber.e("Invalid orderId: empty or blank")
-                    _errorMessage.value = "ID de pedido inválido"
-                    return@launch
-                }
-                Timber.d("Updating order status for orderId: $orderId to $newStatus")
-                val success = repository.updateOrderStatus(orderId, newStatus)
+                val success = repository.updateOrderStatus(
+                    orderId,
+                    newStatus,
+                    UserType.RepartidorUser(
+                        Repartidor(
+                            id = repartidorId,
+                            "",
+                            "",
+                            "",
+                            "",
+                            "",
+                            "",
+                            0.0,
+                            0.0,
+                            0.0,
+                            0,
+                            emptyList(),
+                            ""
+                        )
+                    ),
+                    repartidorId
+                )
                 if (success) {
                     _errorMessage.value = null
                     loadPedidosWithRestaurantNames()

@@ -3,6 +3,9 @@ package com.example.cletaeatsapp.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.cletaeatsapp.data.model.Pedido
+import com.example.cletaeatsapp.data.model.Restaurante
+import com.example.cletaeatsapp.data.model.RestauranteCombo
+import com.example.cletaeatsapp.data.model.UserType
 import com.example.cletaeatsapp.data.repository.CletaEatsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
@@ -68,21 +71,26 @@ class RestauranteOrdenViewModel @Inject constructor(
         }
     }
 
-    fun updateOrderStatus(orderId: String, newStatus: String) {
+    fun updateOrderStatus(orderId: String, newStatus: String, restauranteId: String) {
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                if (newStatus !in listOf(
-                        "en preparación",
-                        "en camino",
-                        "entregado",
-                        "suspendido"
-                    )
-                ) {
-                    _errorMessage.value = "Estado inválido."
-                    return@launch
-                }
-                val success = repository.updateOrderStatus(orderId, newStatus)
+                val success = repository.updateOrderStatus(
+                    orderId,
+                    newStatus,
+                    UserType.RestauranteUser(
+                        Restaurante(
+                            id = restauranteId,
+                            cedulaJuridica = "",
+                            nombre = "",
+                            direccion = "",
+                            tipoComida = "",
+                            contrasena = "",
+                            combos = emptyList<RestauranteCombo>()
+                        )
+                    ),
+                    restauranteId
+                )
                 if (success) {
                     _errorMessage.value = null
                     loadPedidosWithRestaurantNames()

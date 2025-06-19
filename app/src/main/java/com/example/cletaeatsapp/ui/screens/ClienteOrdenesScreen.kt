@@ -49,6 +49,7 @@ import com.example.cletaeatsapp.data.model.UserType
 import com.example.cletaeatsapp.ui.components.OrdenCard
 import com.example.cletaeatsapp.viewmodel.ClienteOrdenViewModel
 import com.example.cletaeatsapp.viewmodel.LoginViewModel
+import com.google.gson.Gson
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
@@ -142,7 +143,13 @@ fun ClienteOrdenesScreen(
                         OrdenCard(
                             pedido = pedido,
                             isRepartidor = false,
-                            isRestaurant = false
+                            isRestaurant = false,
+                            onClick = {
+                                if (pedido.estado == "entregado") {
+                                    val pedidoJson = Gson().toJson(pedido)
+                                    navController.navigate("feedback/$pedidoJson")
+                                }
+                            }
                         )
                     } ?: Text(
                         text = "Seleccione un pedido para ver detalles",
@@ -193,7 +200,13 @@ fun ClienteOrdenesScreen(
                                     OrdenCard(
                                         pedido = pedido,
                                         isRepartidor = false,
-                                        isRestaurant = false
+                                        isRestaurant = false,
+                                        onClick = {
+                                            if (pedido.estado == "entregado") {
+                                                val pedidoJson = Gson().toJson(pedido)
+                                                navController.navigate("feedback/$pedidoJson")
+                                            }
+                                        }
                                     )
                                 }
                             }

@@ -19,6 +19,7 @@ import javax.inject.Inject
 class RestauranteRegistroViewModel @Inject constructor(
     private val repository: CletaEatsRepository
 ) : ViewModel() {
+    // Existing state (unchanged)
     private val _cedulaJuridica = MutableStateFlow("")
     val cedulaJuridica = _cedulaJuridica.asStateFlow()
 
@@ -46,6 +47,23 @@ class RestauranteRegistroViewModel @Inject constructor(
     private val _fieldErrors = MutableStateFlow<Map<String, String>>(emptyMap())
     val fieldErrors = _fieldErrors.asStateFlow()
 
+    // New state for combo dialog
+    private val _comboNumero = MutableStateFlow("")
+    val comboNumero = _comboNumero.asStateFlow()
+
+    private val _comboNombre = MutableStateFlow("")
+    val comboNombre = _comboNombre.asStateFlow()
+
+    private val _comboPrecio = MutableStateFlow("")
+    val comboPrecio = _comboPrecio.asStateFlow()
+
+    private val _comboFieldErrors = MutableStateFlow<Map<String, String>>(emptyMap())
+    val comboFieldErrors = _comboFieldErrors.asStateFlow()
+
+    private val _isComboValid = MutableStateFlow(false)
+    val isComboValid = _isComboValid.asStateFlow()
+
+    // Update methods for main form (unchanged)
     fun updateCedulaJuridica(newCedula: String) {
         _cedulaJuridica.value = newCedula
         validateFields()
@@ -71,10 +89,29 @@ class RestauranteRegistroViewModel @Inject constructor(
         validateFields()
     }
 
-    fun addCombo(numero: Int, nombre: String, precio: Double) {
-        if (numero in 1..9 && nombre.isNotBlank() && precio > 0) {
-            val newCombo = RestauranteCombo(numero, nombre, precio)
+    // Update methods for combo dialog
+    fun updateComboNumero(newNumero: String) {
+        _comboNumero.value = newNumero
+        validateComboFields()
+    }
+
+    fun updateComboNombre(newNombre: String) {
+        _comboNombre.value = newNombre
+        validateComboFields()
+    }
+
+    fun updateComboPrecio(newPrecio: String) {
+        _comboPrecio.value = newPrecio
+        validateComboFields()
+    }
+
+    fun addCombo() {
+        val numero = _comboNumero.value.toIntOrNull()
+        val precio = _comboPrecio.value.toDoubleOrNull()
+        if (numero != null && precio != null && _isComboValid.value) {
+            val newCombo = RestauranteCombo(numero, _comboNombre.value, precio)
             _combos.value = _combos.value + newCombo
+            resetComboFields()
             validateFields()
         }
     }
@@ -82,6 +119,14 @@ class RestauranteRegistroViewModel @Inject constructor(
     fun removeCombo(numero: Int) {
         _combos.value = _combos.value.filter { it.numero != numero }
         validateFields()
+    }
+
+    fun resetComboFields() {
+        _comboNumero.value = ""
+        _comboNombre.value = ""
+        _comboPrecio.value = ""
+        _comboFieldErrors.value = emptyMap()
+        _isComboValid.value = false
     }
 
     fun register(onSuccess: (String, UserType) -> Unit) {
@@ -153,9 +198,38 @@ class RestauranteRegistroViewModel @Inject constructor(
                 if (combo.precio <= 0) errors["combo_${combo.numero}_precio"] =
                     "Precio del combo debe ser positivo."
             }
+            // Check for duplicate combo numbers
+            val comboNumbers = _combos.value.map { it.numero }
+            if (comboNumbers.distinct().size != comboNumbers.size) {
+                errors["combos"] = "No se permiten números de combo duplicados."
+            }
         }
         _fieldErrors.value = errors
         return errors.values.firstOrNull()
+    }
+
+    private fun validateComboFields() {
+        val errors = mutableMapOf<String, String>()
+        val numero = _comboNumero.value.toIntOrNull()
+        if (_comboNumero.value.isBlank()) {
+            errors["comboNumero"] = "Número es obligatorio."
+        } else if (numero == null || numero !in 1..9) {
+            errors["comboNumero"] = "Número debe estar entre 1 y 9."
+        } else if (_combos.value.any { it.numero == numero }) {
+            errors["comboNumero"] = "Número de combo ya registrado."
+        }
+        if (_comboNombre.value.isBlank()) {
+            errors["comboNombre"] = "Nombre es obligatorio."
+        } else if (_comboNombre.value.length < 3) {
+            errors["comboNombre"] = "Nombre debe tener al menos 3 caracteres."
+        }
+        if (_comboPrecio.value.isBlank()) {
+            errors["comboPrecio"] = "Precio es obligatorio."
+        } else if (_comboPrecio.value.toDoubleOrNull() == null || _comboPrecio.value.toDoubleOrNull()!! <= 0) {
+            errors["comboPrecio"] = "Precio debe ser un número positivo."
+        }
+        _comboFieldErrors.value = errors
+        _isComboValid.value = errors.isEmpty()
     }
 
     private fun isCedulaJuridicaValid(cedula: String) =

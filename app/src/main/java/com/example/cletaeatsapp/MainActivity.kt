@@ -353,7 +353,7 @@ fun MainNavDrawer() {
 
                         else -> Unit
                     }
-                    Spacer(modifier = Modifier.weight(1f))
+                    /*Spacer(modifier = Modifier.weight(1f))
                     DrawerItem(
                         text = "Cerrar Sesión",
                         icon = Icons.AutoMirrored.Filled.ExitToApp,
@@ -365,7 +365,7 @@ fun MainNavDrawer() {
                                 loginViewModel.logout()
                             }
                         }
-                    )
+                    )*/
                 }
             }
         ) {

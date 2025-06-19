@@ -150,7 +150,7 @@ fun LoginScreen(
                                     )
                                 }
                             },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text) // Allow text for admin
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         OutlinedTextField(
@@ -182,12 +182,12 @@ fun LoginScreen(
                             Text(
                                 text = it,
                                 color = MaterialTheme.colorScheme.error,
-                                style = MaterialTheme.typography.bodyMedium,
+                                style = MaterialTheme.typography.bodyLarge,
                                 modifier = Modifier.padding(bottom = 8.dp)
                             )
                         }
                         Button(
-                            onClick = { loginViewModel.login { _, _ -> /* Handled by navigationEvent */ } },
+                            onClick = { loginViewModel.login { _, _ -> } },
                             modifier = Modifier.fillMaxWidth(),
                             enabled = !isLoading
                         ) {

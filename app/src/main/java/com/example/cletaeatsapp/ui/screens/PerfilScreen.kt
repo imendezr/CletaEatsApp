@@ -164,16 +164,6 @@ fun PerfilScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
             horizontalAlignment = Alignment.Start
         ) {
-            Text(
-                text = when (userTypeState) {
-                    is UserType.ClienteUser -> "Perfil del Cliente"
-                    is UserType.RepartidorUser -> "Perfil del Repartidor"
-                    is UserType.RestauranteUser -> "Perfil del Restaurante"
-                    else -> "Perfil"
-                },
-                style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.primary
-            )
             AnimatedContent(
                 targetState = isLoadingState,
                 transitionSpec = { fadeIn() togetherWith fadeOut() },

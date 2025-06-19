@@ -123,10 +123,12 @@ fun RepartidorOrdenesScreen(
                             OrdenCard(
                                 pedido = pedido,
                                 onMarkDelivered = {
-                                    if (pedido.estado != "entregado") {
-                                        viewModel.updateOrderStatus(pedido.id, "entregado")
-                                        navController.navigate("repartidor_quejas")
-                                    }
+                                    viewModel.updateOrderStatus(
+                                        pedido.id,
+                                        "entregado",
+                                        repartidorId
+                                    )
+                                    viewModel.loadPedidosWithRestaurantNames() // Refresh instead of navigate
                                 },
                                 onClick = { selectedPedido = pedido },
                                 isRepartidor = true,
@@ -147,10 +149,8 @@ fun RepartidorOrdenesScreen(
                         OrdenCard(
                             pedido = pedido,
                             onMarkDelivered = {
-                                if (pedido.estado != "entregado") {
-                                    viewModel.updateOrderStatus(pedido.id, "entregado")
-                                    navController.navigate("repartidor_quejas")
-                                }
+                                viewModel.updateOrderStatus(pedido.id, "entregado", repartidorId)
+                                viewModel.loadPedidosWithRestaurantNames() // Refresh instead of navigate
                             },
                             isRepartidor = true,
                             isRestaurant = false
@@ -204,10 +204,12 @@ fun RepartidorOrdenesScreen(
                                     OrdenCard(
                                         pedido = pedido,
                                         onMarkDelivered = {
-                                            if (pedido.estado != "entregado") {
-                                                viewModel.updateOrderStatus(pedido.id, "entregado")
-                                                navController.navigate("repartidor_quejas")
-                                            }
+                                            viewModel.updateOrderStatus(
+                                                pedido.id,
+                                                "entregado",
+                                                repartidorId
+                                            )
+                                            viewModel.loadPedidosWithRestaurantNames() // Refresh instead of navigate
                                         },
                                         isRepartidor = true,
                                         isRestaurant = false

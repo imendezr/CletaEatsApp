@@ -100,12 +100,6 @@ fun RepartidorQuejasScreen(
                     }
 
                     is RepartidorQuejasUiState.Success -> {
-                        Text(
-                            text = "Quejas por Repartidor",
-                            style = MaterialTheme.typography.headlineMedium,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
                         val filteredRepartidores =
                             if (userType is UserType.RepartidorUser && repartidorId != null) {
                                 state.repartidores.filter { it.id == repartidorId }

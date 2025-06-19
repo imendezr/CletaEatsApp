@@ -46,12 +46,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -86,10 +83,7 @@ fun RestauranteRegistroScreen(
     val isExpanded = windowSizeClass.widthSizeClass == WindowWidthSizeClass.Expanded
     val padding = if (isExpanded) 32.dp else 16.dp
     val scrollState = rememberScrollState()
-    var showComboDialog by remember { mutableStateOf(false) }
-    var comboNumero by remember { mutableStateOf("") }
-    var comboNombre by remember { mutableStateOf("") }
-    var comboPrecio by remember { mutableStateOf("") }
+    val showComboDialog = remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     // Restrict access to admins only
@@ -130,12 +124,6 @@ fun RestauranteRegistroScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                text = "Registro de Restaurante",
-                style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.semantics { heading() }
-            )
             AnimatedContent(
                 targetState = isLoading,
                 transitionSpec = { fadeIn() togetherWith fadeOut() },
@@ -258,7 +246,7 @@ fun RestauranteRegistroScreen(
                             )
                         }
                         Button(
-                            onClick = { showComboDialog = true },
+                            onClick = { showComboDialog.value = true }, // Updated reference
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text("Agregar Combo")
@@ -311,46 +299,58 @@ fun RestauranteRegistroScreen(
         }
     }
 
-    if (showComboDialog) {
+    if (showComboDialog.value) { // Updated reference
+        val comboNumero by viewModel.comboNumero.collectAsStateWithLifecycle()
+        val comboNombre by viewModel.comboNombre.collectAsStateWithLifecycle()
+        val comboPrecio by viewModel.comboPrecio.collectAsStateWithLifecycle()
+        val comboFieldErrors by viewModel.comboFieldErrors.collectAsStateWithLifecycle()
+        val isComboValid by viewModel.isComboValid.collectAsStateWithLifecycle()
+
         AlertDialog(
-            onDismissRequest = { showComboDialog = false },
-            title = { Text("Agregar Combo") },
+            onDismissRequest = {
+                showComboDialog.value = false // Updated reference
+                viewModel.resetComboFields()
+            },
+            title = { Text("Agregar Combo", style = MaterialTheme.typography.titleMedium) },
             text = {
-                Column {
+                Column(
+                    modifier = Modifier.padding(top = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     OutlinedTextField(
                         value = comboNumero,
-                        onValueChange = { comboNumero = it },
+                        onValueChange = viewModel::updateComboNumero,
                         label = { Text("Número (1-9)") },
                         modifier = Modifier.fillMaxWidth(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        isError = fieldErrors["combo_${comboNumero}_numero"] != null,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                        isError = comboFieldErrors["comboNumero"] != null,
                         supportingText = {
-                            fieldErrors["combo_${comboNumero}_numero"]?.let {
+                            comboFieldErrors["comboNumero"]?.let {
                                 Text(it, color = MaterialTheme.colorScheme.error)
                             }
                         }
                     )
                     OutlinedTextField(
                         value = comboNombre,
-                        onValueChange = { comboNombre = it },
+                        onValueChange = viewModel::updateComboNombre,
                         label = { Text("Nombre") },
                         modifier = Modifier.fillMaxWidth(),
-                        isError = fieldErrors["combo_${comboNumero}_nombre"] != null,
+                        isError = comboFieldErrors["comboNombre"] != null,
                         supportingText = {
-                            fieldErrors["combo_${comboNumero}_nombre"]?.let {
+                            comboFieldErrors["comboNombre"]?.let {
                                 Text(it, color = MaterialTheme.colorScheme.error)
                             }
                         }
                     )
                     OutlinedTextField(
                         value = comboPrecio,
-                        onValueChange = { comboPrecio = it },
-                        label = { Text("Precio") },
+                        onValueChange = viewModel::updateComboPrecio,
+                        label = { Text("Precio (₡)") },
                         modifier = Modifier.fillMaxWidth(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        isError = fieldErrors["combo_${comboNumero}_precio"] != null,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                        isError = comboFieldErrors["comboPrecio"] != null,
                         supportingText = {
-                            fieldErrors["combo_${comboNumero}_precio"]?.let {
+                            comboFieldErrors["comboPrecio"]?.let {
                                 Text(it, color = MaterialTheme.colorScheme.error)
                             }
                         }
@@ -360,25 +360,23 @@ fun RestauranteRegistroScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        val numero = comboNumero.toIntOrNull()
-                        val precio = comboPrecio.toDoubleOrNull()
-                        if (numero != null && precio != null && comboNombre.isNotBlank()) {
-                            viewModel.addCombo(numero, comboNombre, precio)
-                            showComboDialog = false
-                            comboNumero = ""
-                            comboNombre = ""
-                            comboPrecio = ""
-                        }
-                    }
+                        viewModel.addCombo()
+                        showComboDialog.value = false // Updated reference
+                    },
+                    enabled = isComboValid
                 ) {
                     Text("Agregar")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showComboDialog = false }) {
+                TextButton(onClick = {
+                    showComboDialog.value = false // Updated reference
+                    viewModel.resetComboFields()
+                }) {
                     Text("Cancelar")
                 }
-            }
+            },
+            modifier = Modifier.padding(horizontal = if (isExpanded) 24.dp else 16.dp)
         )
     }
 }

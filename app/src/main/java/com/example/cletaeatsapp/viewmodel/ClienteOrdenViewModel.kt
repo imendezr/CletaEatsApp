@@ -121,23 +121,4 @@ class ClienteOrdenViewModel @Inject constructor(
             }
         }
     }
-
-    fun updateOrderStatus(orderId: String, newStatus: String) {
-        viewModelScope.launch {
-            _isLoading.value = true
-            try {
-                val success = repository.updateOrderStatus(orderId, newStatus)
-                if (success) {
-                    _errorMessage.value = null
-                    loadPedidosWithRestaurantNames()
-                } else {
-                    _errorMessage.value = "No se pudo actualizar el pedido."
-                }
-            } catch (e: Exception) {
-                _errorMessage.value = "Error al actualizar pedido: ${e.message}"
-            } finally {
-                _isLoading.value = false
-            }
-        }
-    }
 }

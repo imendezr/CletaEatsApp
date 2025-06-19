@@ -95,13 +95,6 @@ fun ReportesScreen(
                     }
 
                     is ReportsUiState.Success -> {
-                        Text(
-                            text = "Reportes Administrativos",
-                            style = MaterialTheme.typography.headlineMedium,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-
                         LazyColumn(
                             contentPadding = PaddingValues(bottom = 16.dp)
                         ) {
@@ -295,7 +288,9 @@ fun ReportesScreen(
                                         )
                                         Spacer(modifier = Modifier.height(8.dp))
                                         Text(
-                                            text = "₡${state.totalRevenue.format(2)}",
+                                            text = "₡${
+                                                state.revenueByRestaurant.values.sum().format(2)
+                                            }",
                                             style = MaterialTheme.typography.bodyMedium,
                                             color = MaterialTheme.colorScheme.primary
                                         )

@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.cletaeatsapp.data.model.UserType
+import com.example.cletaeatsapp.data.repository.AuthResult
 import com.example.cletaeatsapp.data.repository.CletaEatsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.TimeoutCancellationException
@@ -83,78 +84,71 @@ class LoginViewModel @Inject constructor(
                 return@launch
             }
             try {
-                withTimeout(5000L) {
-                    when (val user =
+                withTimeout(6000L) {
+                    when (val result =
                         repository.authenticateUser(_cedula.value, _contrasena.value)) {
-                        is UserType.ClienteUser -> {
-                            if (user.cliente.estado != "activo") {
-                                _errorMessage.value = "Usuario suspendido."
-                                _fieldErrors.value = mapOf("general" to "Usuario suspendido.")
-                                _isLoading.value = false
-                                return@withTimeout
+                        is AuthResult.Success -> {
+                            val user = result.user
+                            when (user) {
+                                is UserType.ClienteUser -> {
+                                    saveCedula(_cedula.value)
+                                    saveUserId(user.cliente.id)
+                                    _userType.value = user
+                                    _errorMessage.value = ""
+                                    _fieldErrors.value = emptyMap()
+                                    onLoginSuccess(_cedula.value, user)
+                                    _navigationEvent.value =
+                                        NavigationEvent.NavigateToClienteHome(user.cliente.id)
+                                }
+
+                                is UserType.RepartidorUser -> {
+                                    saveCedula(_cedula.value)
+                                    saveUserId(user.repartidor.id)
+                                    _userType.value = user
+                                    _errorMessage.value = ""
+                                    _fieldErrors.value = emptyMap()
+                                    onLoginSuccess(_cedula.value, user)
+                                    _navigationEvent.value =
+                                        NavigationEvent.NavigateToRepartidorHome(user.repartidor.id)
+                                }
+
+                                is UserType.RestauranteUser -> {
+                                    saveCedula(_cedula.value)
+                                    saveUserId(user.restaurante.id)
+                                    _userType.value = user
+                                    _errorMessage.value = ""
+                                    _fieldErrors.value = emptyMap()
+                                    onLoginSuccess(_cedula.value, user)
+                                    _navigationEvent.value =
+                                        NavigationEvent.NavigateToRestauranteOrders(user.restaurante.id)
+                                }
+
+                                is UserType.AdminUser -> {
+                                    saveCedula(_cedula.value)
+                                    saveUserId(user.admin.id)
+                                    _userType.value = user
+                                    _errorMessage.value = ""
+                                    _fieldErrors.value = emptyMap()
+                                    onLoginSuccess(_cedula.value, user)
+                                    _navigationEvent.value =
+                                        NavigationEvent.NavigateToAdminHome(user.admin.id)
+                                }
                             }
-                            saveCedula(_cedula.value)
-                            saveUserId(user.cliente.id)
-                            _userType.value = user
-                            _errorMessage.value = ""
-                            _fieldErrors.value = emptyMap()
-                            onLoginSuccess(_cedula.value, user)
-                            _navigationEvent.value =
-                                NavigationEvent.NavigateToClienteHome(user.cliente.id)
                         }
 
-                        is UserType.RepartidorUser -> {
-                            if (user.repartidor.amonestaciones >= 4 || user.repartidor.estado == "inactivo") {
-                                _errorMessage.value =
-                                    "Repartidor inactivo o con demasiadas amonestaciones."
-                                _fieldErrors.value =
-                                    mapOf("general" to "Repartidor inactivo o con demasiadas amonestaciones.")
-                                _isLoading.value = false
-                                return@withTimeout
-                            }
-                            saveCedula(_cedula.value)
-                            saveUserId(user.repartidor.id)
-                            _userType.value = user
-                            _errorMessage.value = ""
-                            _fieldErrors.value = emptyMap()
-                            onLoginSuccess(_cedula.value, user)
-                            _navigationEvent.value =
-                                NavigationEvent.NavigateToRepartidorHome(user.repartidor.id)
-                        }
-
-                        is UserType.RestauranteUser -> {
-                            saveCedula(_cedula.value)
-                            saveUserId(user.restaurante.id)
-                            _userType.value = user
-                            _errorMessage.value = ""
-                            _fieldErrors.value = emptyMap()
-                            onLoginSuccess(_cedula.value, user)
-                            _navigationEvent.value =
-                                NavigationEvent.NavigateToRestauranteOrders(user.restaurante.id)
-                        }
-
-                        is UserType.AdminUser -> {
-                            saveCedula(_cedula.value)
-                            saveUserId(user.admin.id)
-                            _userType.value = user
-                            _errorMessage.value = ""
-                            _fieldErrors.value = emptyMap()
-                            onLoginSuccess(_cedula.value, user)
-                            _navigationEvent.value =
-                                NavigationEvent.NavigateToAdminHome(user.admin.id)
-                        }
-
-                        else -> {
-                            _errorMessage.value = "Cédula o contraseña incorrectas."
-                            _fieldErrors.value =
-                                mapOf("general" to "Cédula o contraseña incorrectas.")
+                        is AuthResult.Error -> {
+                            _errorMessage.value = result.message
+                            _fieldErrors.value = mapOf("general" to result.message)
                         }
                     }
                 }
             } catch (_: TimeoutCancellationException) {
                 _errorMessage.value = "Tiempo de espera agotado. Intente de nuevo."
+                _fieldErrors.value =
+                    mapOf("general" to "Tiempo de espera agotado. Intente de nuevo.")
             } catch (e: Exception) {
                 _errorMessage.value = "Error al iniciar sesión: ${e.message}"
+                _fieldErrors.value = mapOf("general" to "Error al iniciar sesión: ${e.message}")
             } finally {
                 _isLoading.value = false
             }
@@ -164,26 +158,30 @@ class LoginViewModel @Inject constructor(
     fun loadUserData() {
         viewModelScope.launch {
             dataStore.data.map { preferences ->
-                preferences[stringPreferencesKey("cedula")] ?: ""
-            }.collect { savedCedula ->
-                if (savedCedula.isNotBlank()) {
+                val cedula = preferences[stringPreferencesKey("cedula")] ?: ""
+                val contrasena = preferences[stringPreferencesKey("contrasena")] ?: ""
+                Pair(cedula, contrasena)
+            }.collect { (savedCedula, savedContrasena) ->
+                if (savedCedula.isNotBlank() && savedContrasena.isNotBlank()) {
                     _cedula.value = savedCedula
                     try {
-                        val user = repository.getUserByCedula(savedCedula)
-                        if (user is UserType.ClienteUser && user.cliente.estado != "activo") {
-                            _userType.value = null
-                            clearUserData()
-                        } else if (user is UserType.RepartidorUser && (user.repartidor.amonestaciones >= 4 || user.repartidor.estado == "inactivo")) {
-                            _userType.value = null
-                            clearUserData()
-                        } else {
-                            _userType.value = user
-                            when (user) {
-                                is UserType.ClienteUser -> saveUserId(user.cliente.id)
-                                is UserType.RepartidorUser -> saveUserId(user.repartidor.id)
-                                is UserType.RestauranteUser -> saveUserId(user.restaurante.id)
-                                is UserType.AdminUser -> saveUserId(user.admin.id)
-                                else -> _userId.value = ""
+                        when (val result =
+                            repository.authenticateUser(savedCedula, savedContrasena)) {
+                            is AuthResult.Success -> {
+                                val user = result.user
+                                _userType.value = user
+                                when (user) {
+                                    is UserType.ClienteUser -> saveUserId(user.cliente.id)
+                                    is UserType.RepartidorUser -> saveUserId(user.repartidor.id)
+                                    is UserType.RestauranteUser -> saveUserId(user.restaurante.id)
+                                    is UserType.AdminUser -> saveUserId(user.admin.id)
+                                }
+                            }
+
+                            is AuthResult.Error -> {
+                                _userType.value = null
+                                clearUserData()
+                                _errorMessage.value = result.message
                             }
                         }
                     } catch (e: Exception) {
@@ -283,5 +281,5 @@ sealed class NavigationEvent {
     data class NavigateToRepartidorHome(val id: String) : NavigationEvent()
     data class NavigateToRestauranteOrders(val id: String) : NavigationEvent()
     data class NavigateToAdminHome(val id: String) : NavigationEvent()
-    data object NavigateToLogin : NavigationEvent()
+    object NavigateToLogin : NavigationEvent()
 }

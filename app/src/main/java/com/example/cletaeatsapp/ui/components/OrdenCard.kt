@@ -1,6 +1,9 @@
 package com.example.cletaeatsapp.ui.components
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -15,12 +18,12 @@ import androidx.compose.material.icons.automirrored.filled.DirectionsBike
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardColors
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -48,11 +51,9 @@ fun OrdenCard(
             .padding(8.dp)
             .clickable { onClick() },
         shape = MaterialTheme.shapes.medium,
-        colors = CardColors(
+        colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainer,
-            contentColor = MaterialTheme.colorScheme.onSurface,
-            disabledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-            disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+            contentColor = MaterialTheme.colorScheme.onSurface
         )
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -138,33 +139,46 @@ fun OrdenCard(
                     )
                 }
             }
-            if (isRepartidor && pedido.estado != "entregado") {
-                OutlinedButton(
-                    onClick = onMarkDelivered,
-                    modifier = Modifier
-                        .align(Alignment.End)
-                        .padding(top = 8.dp)
-                ) {
-                    Text("Marcar como Entregado")
-                }
-            } else if (isRestaurant && pedido.estado == "en preparación") {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 8.dp),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    OutlinedButton(
-                        onClick = onMarkInTransit,
-                        modifier = Modifier.padding(end = 8.dp)
+            AnimatedVisibility(
+                visible = isRepartidor || isRestaurant,
+                enter = fadeIn(),
+                exit = fadeOut()
+            ) {
+                if (isRepartidor) {
+                    Button(
+                        onClick = onMarkDelivered,
+                        enabled = pedido.estado == "en camino",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp)
                     ) {
-                        Text("Marcar como En Camino")
+                        Text("Marcar como Entregado")
                     }
-                    OutlinedButton(
-                        onClick = { onMarkSuspended?.invoke() },
-                        modifier = Modifier.padding(end = 8.dp)
+                } else if (isRestaurant) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp),
+                        horizontalArrangement = Arrangement.End
                     ) {
-                        Text("Suspender")
+                        Button(
+                            onClick = onMarkInTransit,
+                            enabled = pedido.estado == "en preparación" || pedido.estado == "suspendido",
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(end = 8.dp)
+                        ) {
+                            Text("En Camino")
+                        }
+                        Button(
+                            onClick = { onMarkSuspended?.invoke() },
+                            enabled = pedido.estado == "en preparación",
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(end = 8.dp)
+                        ) {
+                            Text("Suspender")
+                        }
                     }
                 }
             }

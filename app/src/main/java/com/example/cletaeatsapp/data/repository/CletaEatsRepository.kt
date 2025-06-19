@@ -37,17 +37,17 @@ class CletaEatsRepository(
 
     private suspend fun initializeData() = withContext(Dispatchers.IO) {
         try {
-            initializeMockClientes()
-            initializeMockRestaurants()
-            initializeMockRepartidores()
-            initializeMockPedidos()
+            if (!context.fileList().contains("clientes.txt")) initializeMockClientes()
+            if (!context.fileList().contains("restaurantes.txt")) initializeMockRestaurants()
+            if (!context.fileList().contains("repartidores.txt")) initializeMockRepartidores()
+            if (!context.fileList().contains("pedidos.txt")) initializeMockPedidos()
+            if (!context.fileList().contains("admins.txt")) initializeMockAdmins()
             resetRepartidoresEstado()
         } catch (e: Exception) {
             Timber.e(e, "Error initializing data")
         }
     }
 
-    // --- User Methods ---
     suspend fun getUserByCedula(cedula: String): UserType? = withContext(Dispatchers.IO) {
         val cliente = getClientes().find { it.cedula == cedula }
         if (cliente != null) return@withContext UserType.ClienteUser(cliente)
@@ -64,7 +64,6 @@ class CletaEatsRepository(
         null
     }
 
-    // --- Cliente Methods ---
     suspend fun saveClientes(clientes: List<Cliente>) = withContext(Dispatchers.IO) {
         retryIO(3) {
             val json = Gson().toJson(clientes)
@@ -78,10 +77,12 @@ class CletaEatsRepository(
         try {
             retryIO(3) {
                 context.openFileInput("clientes.txt").use {
-                    Gson().fromJson(
+                    val clientes = Gson().fromJson(
                         it.readBytes().toString(Charsets.UTF_8),
                         Array<Cliente>::class.java
                     ).toList()
+                    Timber.d("Loaded clients: ${clientes.map { it.cedula to it.contrasena }}")
+                    clientes
                 }
             }
         } catch (_: Exception) {
@@ -105,7 +106,6 @@ class CletaEatsRepository(
         }
     }
 
-    // --- Repartidor Methods ---
     suspend fun saveRepartidores(repartidores: List<Repartidor>) = withContext(Dispatchers.IO) {
         retryIO(3) {
             val json = Gson().toJson(repartidores)
@@ -136,7 +136,7 @@ class CletaEatsRepository(
         if (repartidor.nombre.isBlank() || repartidor.direccion.isBlank() || repartidor.telefono.isBlank() || repartidor.correo.isBlank()) {
             return@withContext false
         }
-        if (repartidor.costoPorKmHabiles != 1000.0 || repartidor.costoPorKmFeriados != 1500.0) {
+        if (repartidor.costoPorKmHabiles <= 0 || repartidor.costoPorKmFeriados <= 0) {
             return@withContext false
         }
         val repartidores = getRepartidores().toMutableList()
@@ -178,7 +178,6 @@ class CletaEatsRepository(
         saveRepartidores(repartidores)
     }
 
-    // --- Restaurante Methods ---
     suspend fun saveRestaurantes(restaurantes: List<Restaurante>) = withContext(Dispatchers.IO) {
         retryIO(3) {
             val json = Gson().toJson(restaurantes)
@@ -226,18 +225,13 @@ class CletaEatsRepository(
 
     private fun isContrasenaValid(password: String) = password.length >= 8
     private fun areCombosValid(combos: List<RestauranteCombo>): Boolean {
-        val validPrices = mapOf(
-            1 to 4000.0, 2 to 5000.0, 3 to 6000.0, 4 to 7000.0, 5 to 8000.0,
-            6 to 9000.0, 7 to 10000.0, 8 to 11000.0, 9 to 12000.0
-        )
         return combos.all { combo ->
             combo.numero in 1..9 &&
                     combo.nombre.isNotBlank() &&
-                    combo.precio == validPrices[combo.numero]
+                    combo.precio > 0
         }
     }
 
-    // --- Admin Methods ---
     suspend fun saveAdmins(admins: List<Admin>) = withContext(Dispatchers.IO) {
         retryIO(3) {
             val json = Gson().toJson(admins)
@@ -262,7 +256,6 @@ class CletaEatsRepository(
         }
     }
 
-    // --- Pedido Methods ---
     suspend fun savePedidos(pedidos: List<Pedido>) = withContext(Dispatchers.IO) {
         retryIO(3) {
             val json = Gson().toJson(pedidos)
@@ -295,18 +288,15 @@ class CletaEatsRepository(
     ): Pedido? = withContext(Dispatchers.IO) {
         Timber.d("Attempting to create order with clienteId: $clienteId, restauranteId: $restauranteId")
         try {
-            // Validar cliente por ID
             val cliente = getClientes().find { it.id == clienteId && it.estado == "activo" }
                 ?: run {
                     Timber.e("Cliente not found or not active for clienteId: $clienteId")
                     return@withContext null
                 }
 
-            // Validar restaurante
             val restaurante = getRestaurantes().find { it.id == restauranteId }
                 ?: return@withContext null
 
-            // Validar combos
             combos.forEach { pedidoCombo ->
                 val comboValido = restaurante.combos.find {
                     it.numero == pedidoCombo.numero &&
@@ -318,19 +308,16 @@ class CletaEatsRepository(
                 }
             }
 
-            // Log available repartidores
             val availableRepartidores = getRepartidores()
                 .filter { it.estado == "disponible" && it.amonestaciones < 4 }
             Timber.d("Available repartidores: ${availableRepartidores.map { it.nombre }}")
 
-            // Obtener repartidor disponible
             val repartidor = availableRepartidores.shuffled().firstOrNull()
                 ?: run {
                     Timber.e("No repartidores disponibles")
                     return@withContext null
                 }
 
-            // Calcular costos
             val isFeriado = false
             val costoPorKm =
                 if (isFeriado) repartidor.costoPorKmFeriados else repartidor.costoPorKmHabiles
@@ -339,7 +326,6 @@ class CletaEatsRepository(
             val iva = precio * 0.13
             val total = precio + costoTransporte + iva
 
-            // Crear pedido
             val pedido = Pedido(
                 id = UUID.randomUUID().toString(),
                 clienteId = clienteId,
@@ -359,7 +345,6 @@ class CletaEatsRepository(
                 nombreRestaurante = restaurante.nombre
             )
 
-            // Actualizar estado del repartidor
             val repartidores = getRepartidores().toMutableList()
             val index = repartidores.indexOfFirst { it.id == repartidor.id }
             if (index >= 0) {
@@ -367,7 +352,6 @@ class CletaEatsRepository(
                 saveRepartidores(repartidores)
             }
 
-            // Guardar pedido
             val pedidos = getPedidos().toMutableList()
             pedidos.add(pedido)
             savePedidos(pedidos)
@@ -379,73 +363,156 @@ class CletaEatsRepository(
         }
     }
 
-    suspend fun updateOrderStatus(orderId: String, newStatus: String): Boolean =
+    suspend fun updateOrderStatus(
+        orderId: String,
+        newStatus: String,
+        userType: UserType,
+        userId: String
+    ): Boolean = withContext(Dispatchers.IO) {
+        try {
+            if (newStatus !in listOf("en preparación", "en camino", "entregado", "suspendido")) {
+                Timber.e("Invalid status: $newStatus")
+                return@withContext false
+            }
+
+            val pedidos = getPedidos().toMutableList()
+            val pedido = pedidos.find { it.id == orderId } ?: run {
+                Timber.e("Order not found: $orderId")
+                return@withContext false
+            }
+
+            // Validate role-based permissions
+            when (userType) {
+                is UserType.RestauranteUser -> {
+                    if (userId != pedido.restauranteId) {
+                        Timber.e("Restaurante $userId not authorized for order $orderId")
+                        return@withContext false
+                    }
+                    when (pedido.estado) {
+                        "en preparación" -> {
+                            if (newStatus !in listOf("en camino", "suspendido")) {
+                                Timber.e("Invalid transition from en preparación to $newStatus")
+                                return@withContext false
+                            }
+                        }
+
+                        "suspendido" -> {
+                            if (newStatus !in listOf("en preparación", "en camino")) {
+                                Timber.e("Invalid transition from suspendido to $newStatus")
+                                return@withContext false
+                            }
+                        }
+
+                        else -> {
+                            Timber.e("Restaurante cannot transition from ${pedido.estado}")
+                            return@withContext false
+                        }
+                    }
+                }
+
+                is UserType.RepartidorUser -> {
+                    if (userId != pedido.repartidorId) {
+                        Timber.e("Repartidor $userId not authorized for order $orderId")
+                        return@withContext false
+                    }
+                    if (pedido.estado != "en camino" || newStatus != "entregado") {
+                        Timber.e("Invalid transition from ${pedido.estado} to $newStatus by Repartidor")
+                        return@withContext false
+                    }
+                }
+
+                else -> {
+                    Timber.e("User type ${userType::class.simpleName} not authorized to update order status")
+                    return@withContext false
+                }
+            }
+
+            val updatedPedido = when (newStatus) {
+                "entregado" -> {
+                    val repartidores = getRepartidores().toMutableList()
+                    val repartidor = repartidores.find { it.id == pedido.repartidorId }
+                        ?: return@withContext false
+                    val updatedRepartidor = repartidor.copy(
+                        kmRecorridosDiarios = repartidor.kmRecorridosDiarios + pedido.distancia,
+                        estado = "disponible"
+                    )
+                    val repartidorIndex = repartidores.indexOfFirst { it.id == repartidor.id }
+                    if (repartidorIndex >= 0) {
+                        repartidores[repartidorIndex] = updatedRepartidor
+                        saveRepartidores(repartidores)
+                    }
+                    pedido.copy(
+                        estado = newStatus,
+                        horaEntregado = SimpleDateFormat(
+                            "yyyy-MM-dd HH:mm:ss",
+                            Locale.getDefault()
+                        ).format(Date())
+                    )
+                }
+
+                else -> pedido.copy(estado = newStatus)
+            }
+
+            val index = pedidos.indexOf(pedido)
+            if (index >= 0) {
+                pedidos[index] = updatedPedido
+                savePedidos(pedidos)
+                Timber.d("Order $orderId updated to $newStatus by ${userType::class.simpleName}")
+                true
+            } else {
+                Timber.e("Order $orderId not found in list")
+                false
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Error updating order $orderId to $newStatus")
+            false
+        }
+    }
+
+    suspend fun authenticateUser(cedula: String, contrasena: String): AuthResult =
         withContext(Dispatchers.IO) {
             try {
-                val pedidos = getPedidos().toMutableList()
-                val pedido = pedidos.find { it.id == orderId } ?: return@withContext false
-                val updatedPedido = when (newStatus) {
-                    "entregado" -> {
-                        // Actualizar kmRecorridosDiarios del repartidor
-                        val repartidores = getRepartidores().toMutableList()
-                        val repartidor = repartidores.find { it.id == pedido.repartidorId }
-                            ?: return@withContext false
-                        val updatedRepartidor = repartidor.copy(
-                            kmRecorridosDiarios = repartidor.kmRecorridosDiarios + pedido.distancia,
-                            estado = "disponible" // Liberar al repartidor
-                        )
-                        val repartidorIndex = repartidores.indexOfFirst { it.id == repartidor.id }
-                        if (repartidorIndex >= 0) {
-                            repartidores[repartidorIndex] = updatedRepartidor
-                            saveRepartidores(repartidores)
-                        }
-                        pedido.copy(
-                            estado = newStatus,
-                            horaEntregado = SimpleDateFormat(
-                                "yyyy-MM-dd HH:mm:ss",
-                                Locale.getDefault()
-                            ).format(Date())
-                        )
+                val cliente =
+                    getClientes().find { it.cedula == cedula && it.contrasena == contrasena }
+                Timber.d("Client check: cedula=$cedula, contrasena=$contrasena, found=${cliente?.cedula}, passMatch=${cliente?.contrasena == contrasena}")
+                if (cliente != null) {
+                    if (cliente.estado == "activo") {
+                        return@withContext AuthResult.Success(UserType.ClienteUser(cliente))
+                    } else {
+                        return@withContext AuthResult.Error("Cliente suspendido")
                     }
+                }
 
-                    else -> pedido.copy(estado = newStatus)
+                val repartidor =
+                    getRepartidores().find { it.cedula == cedula && it.contrasena == contrasena }
+                if (repartidor != null) {
+                    if (repartidor.amonestaciones >= 4) {
+                        return@withContext AuthResult.Error("Repartidor con demasiadas amonestaciones")
+                    }
+                    if (repartidor.estado == "inactivo") {
+                        return@withContext AuthResult.Error("Repartidor inactivo")
+                    }
+                    return@withContext AuthResult.Success(UserType.RepartidorUser(repartidor))
                 }
-                val index = pedidos.indexOf(pedido)
-                if (index >= 0) {
-                    pedidos[index] = updatedPedido
-                    savePedidos(pedidos)
-                    true
-                } else {
-                    false
+
+                val restaurante =
+                    getRestaurantes().find { it.cedulaJuridica == cedula && it.contrasena == contrasena }
+                if (restaurante != null) {
+                    return@withContext AuthResult.Success(UserType.RestauranteUser(restaurante))
                 }
-            } catch (_: Exception) {
-                false
+
+                val admin =
+                    getAdmins().find { it.nombreUsuario == cedula && it.contrasena == contrasena }
+                if (admin != null) {
+                    return@withContext AuthResult.Success(UserType.AdminUser(admin))
+                }
+
+                AuthResult.Error("Cédula o contraseña incorrecta")
+            } catch (e: Exception) {
+                AuthResult.Error("Error al autenticar: ${e.message}")
             }
         }
 
-    // --- Authentication Methods ---
-    suspend fun authenticateUser(cedula: String, contrasena: String): UserType? =
-        withContext(Dispatchers.IO) {
-            val cliente =
-                getClientes().find { it.cedula == cedula && it.contrasena == contrasena && it.estado == "activo" }
-            if (cliente != null) return@withContext UserType.ClienteUser(cliente)
-
-            val repartidor =
-                getRepartidores().find { it.cedula == cedula && it.contrasena == contrasena && it.amonestaciones < 4 && it.estado != "inactivo" }
-            if (repartidor != null) return@withContext UserType.RepartidorUser(repartidor)
-
-            val restaurante =
-                getRestaurantes().find { it.cedulaJuridica == cedula && it.contrasena == contrasena }
-            if (restaurante != null) return@withContext UserType.RestauranteUser(restaurante)
-
-            val admin =
-                getAdmins().find { it.nombreUsuario == cedula && it.contrasena == contrasena }
-            if (admin != null) return@withContext UserType.AdminUser(admin)
-
-            null
-        }
-
-    // --- Profile Update Methods ---
     suspend fun updateClienteProfile(cliente: Cliente) = withContext(Dispatchers.IO) {
         val clientes = getClientes().toMutableList()
         val index = clientes.indexOfFirst { it.cedula == cliente.cedula }
@@ -482,7 +549,6 @@ class CletaEatsRepository(
         }
     }
 
-    // --- Report Methods ---
     suspend fun getActiveClients(): List<Cliente> = withContext(Dispatchers.IO) {
         getClientes().filter { it.estado == "activo" }
     }
@@ -529,12 +595,11 @@ class CletaEatsRepository(
         val pedidos = getPedidos()
         if (pedidos.isEmpty()) return@withContext null
         val horas = pedidos.groupBy {
-            it.horaRealizado.substring(11, 13) // Extraer hora (HH)
+            it.horaRealizado.substring(11, 13)
         }
         horas.maxByOrNull { it.value.size }?.key
     }
 
-    // --- Mock Data Initialization ---
     private suspend fun initializeMockClientes() = withContext(Dispatchers.IO) {
         val mockClientes = listOf(
             Cliente(
@@ -789,4 +854,9 @@ class CletaEatsRepository(
         }
         throw IOException("Failed after $times attempts")
     }
+}
+
+sealed class AuthResult {
+    data class Success(val user: UserType) : AuthResult()
+    data class Error(val message: String) : AuthResult()
 }

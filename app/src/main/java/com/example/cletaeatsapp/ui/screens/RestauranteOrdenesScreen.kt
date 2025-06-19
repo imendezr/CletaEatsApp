@@ -123,19 +123,25 @@ fun RestauranteOrdenesScreen(
                                 OrdenCard(
                                     pedido = pedido,
                                     onMarkDelivered = {
-                                        if (pedido.estado != "entregado") {
-                                            viewModel.updateOrderStatus(pedido.id, "entregado")
-                                        }
+                                        viewModel.updateOrderStatus(
+                                            pedido.id,
+                                            "entregado",
+                                            restauranteId
+                                        )
                                     },
                                     onMarkInTransit = {
-                                        if (pedido.estado != "en camino") {
-                                            viewModel.updateOrderStatus(pedido.id, "en camino")
-                                        }
+                                        viewModel.updateOrderStatus(
+                                            pedido.id,
+                                            "en camino",
+                                            restauranteId
+                                        )
                                     },
                                     onMarkSuspended = {
-                                        if (pedido.estado != "suspendido") {
-                                            viewModel.updateOrderStatus(pedido.id, "suspendido")
-                                        }
+                                        viewModel.updateOrderStatus(
+                                            pedido.id,
+                                            "suspendido",
+                                            restauranteId
+                                        )
                                     },
                                     isRepartidor = false,
                                     isRestaurant = true

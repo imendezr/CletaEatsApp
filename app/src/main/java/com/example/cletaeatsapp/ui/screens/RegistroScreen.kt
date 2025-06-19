@@ -235,7 +235,8 @@ fun RegistroScreen(
                             Text(
                                 text = it,
                                 color = MaterialTheme.colorScheme.error,
-                                style = MaterialTheme.typography.bodyMedium
+                                style = MaterialTheme.typography.bodyLarge,
+                                modifier = Modifier.padding(top = 8.dp)
                             )
                         }
                         Button(
@@ -243,7 +244,6 @@ fun RegistroScreen(
                             modifier = Modifier.fillMaxWidth(),
                             enabled = !isLoading
                         ) {
-                            Text("Registrarse")
                         }
                         TextButton(
                             onClick = { navController.popBackStack() },
