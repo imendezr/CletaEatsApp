@@ -9,8 +9,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.cletaeatsapp.data.model.Cliente
 import com.example.cletaeatsapp.data.model.Repartidor
+import com.example.cletaeatsapp.data.model.UserType
 import com.example.cletaeatsapp.data.repository.CletaEatsRepository
-import com.example.cletaeatsapp.data.repository.UserType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.MutableStateFlow

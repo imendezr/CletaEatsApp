@@ -2,8 +2,8 @@ package com.example.cletaeatsapp.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.cletaeatsapp.data.model.UserType
 import com.example.cletaeatsapp.data.repository.CletaEatsRepository
-import com.example.cletaeatsapp.data.repository.UserType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -24,10 +24,10 @@ class PerfilViewModel @Inject constructor(
         cedula: String,
         nombre: String,
         direccion: String,
-        telefono: String,
-        correo: String,
-        distancia: Double? = null,
-        costoPorKm: Double? = null,
+        telefono: String, // No aplica a Restaurante, pero lo mantenemos para consistencia
+        correo: String, // No aplica a Restaurante, pero lo mantenemos para consistencia
+        distancia: Double? = null, // No aplica a Restaurante
+        costoPorKm: Double? = null, // No aplica a Restaurante
         currentPassword: String,
         newPassword: String,
         confirmPassword: String,
@@ -58,13 +58,22 @@ class PerfilViewModel @Inject constructor(
                             direccion = direccion,
                             telefono = telefono,
                             correo = correo,
-                            distancia = distancia
-                                ?: userType.repartidor.distancia,
-                            costoPorKm = costoPorKm
-                                ?: userType.repartidor.costoPorKm,
+                            distancia = distancia ?: userType.repartidor.distancia,
+                            costoPorKm = costoPorKm ?: userType.repartidor.costoPorKm,
                             contrasena = if (newPassword.isNotBlank() && newPassword == confirmPassword) newPassword else currentPassword
                         )
                         repository.updateRepartidorProfile(updatedRepartidor)
+                    }
+
+                    is UserType.RestauranteUser -> {
+                        val updatedRestaurante = userType.restaurante.copy(
+                            cedulaJuridica = cedula,
+                            nombre = nombre,
+                            direccion = direccion,
+                            tipoComida = (userType.restaurante.tipoComida), // Tipo de comida no se edita aquí
+                            contrasena = if (newPassword.isNotBlank() && newPassword == confirmPassword) newPassword else currentPassword
+                        )
+                        repository.updateRestauranteProfile(updatedRestaurante)
                     }
 
                     else -> false

@@ -41,7 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import com.example.cletaeatsapp.data.repository.UserType
+import com.example.cletaeatsapp.data.model.UserType
 import com.example.cletaeatsapp.viewmodel.LoginViewModel
 import com.example.cletaeatsapp.viewmodel.PerfilViewModel
 
@@ -66,25 +66,23 @@ fun PerfilScreen(
     var newPassword by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
     var distancia by remember {
-        mutableStateOf(
-            (userTypeState as? UserType.RepartidorUser)?.repartidor?.distancia?.toString() ?: ""
-        )
+        mutableStateOf((userTypeState as? UserType.RepartidorUser)?.repartidor?.distancia?.toString() ?: "")
     }
     var costoPorKm by remember {
-        mutableStateOf(
-            (userTypeState as? UserType.RepartidorUser)?.repartidor?.costoPorKm?.toString() ?: ""
-        )
+        mutableStateOf((userTypeState as? UserType.RepartidorUser)?.repartidor?.costoPorKm?.toString() ?: "")
     }
     var nombre by remember {
         mutableStateOf(
             (userTypeState as? UserType.ClientUser)?.cliente?.nombre
-                ?: (userTypeState as? UserType.RepartidorUser)?.repartidor?.nombre ?: ""
+                ?: (userTypeState as? UserType.RepartidorUser)?.repartidor?.nombre
+                ?: (userTypeState as? UserType.RestauranteUser)?.restaurante?.nombre ?: ""
         )
     }
     var direccion by remember {
         mutableStateOf(
             (userTypeState as? UserType.ClientUser)?.cliente?.direccion
-                ?: (userTypeState as? UserType.RepartidorUser)?.repartidor?.direccion ?: ""
+                ?: (userTypeState as? UserType.RepartidorUser)?.repartidor?.direccion
+                ?: (userTypeState as? UserType.RestauranteUser)?.restaurante?.direccion ?: ""
         )
     }
     var telefono by remember {
@@ -98,6 +96,9 @@ fun PerfilScreen(
             (userTypeState as? UserType.ClientUser)?.cliente?.correo
                 ?: (userTypeState as? UserType.RepartidorUser)?.repartidor?.correo ?: ""
         )
+    }
+    var tipoComida by remember {
+        mutableStateOf((userTypeState as? UserType.RestauranteUser)?.restaurante?.tipoComida ?: "")
     }
 
     LaunchedEffect(userTypeState, cedulaState) {
@@ -142,6 +143,7 @@ fun PerfilScreen(
                 text = when (userTypeState) {
                     is UserType.ClientUser -> "Perfil del Cliente"
                     is UserType.RepartidorUser -> "Perfil del Repartidor"
+                    is UserType.RestauranteUser -> "Perfil del Restaurante"
                     else -> "Perfil"
                 },
                 style = MaterialTheme.typography.headlineMedium,
@@ -200,6 +202,18 @@ fun PerfilScreen(
                                     isError = false,
                                     supportingText = { }
                                 )
+                                if (userData is UserType.RestauranteUser) {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    OutlinedTextField(
+                                        value = tipoComida,
+                                        onValueChange = { tipoComida = it },
+                                        label = { Text("Tipo de Comida") },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        enabled = true,
+                                        isError = false,
+                                        supportingText = { }
+                                    )
+                                }
                                 Spacer(modifier = Modifier.height(8.dp))
                                 OutlinedTextField(
                                     value = telefono,
@@ -309,14 +323,22 @@ fun PerfilScreen(
                                     label = "Nombre",
                                     value = (userData as? UserType.ClientUser)?.cliente?.nombre
                                         ?: (userData as? UserType.RepartidorUser)?.repartidor?.nombre
+                                        ?: (userData as? UserType.RestauranteUser)?.restaurante?.nombre
                                         ?: ""
                                 )
                                 ProfileField(
                                     label = "Dirección",
                                     value = (userData as? UserType.ClientUser)?.cliente?.direccion
                                         ?: (userData as? UserType.RepartidorUser)?.repartidor?.direccion
+                                        ?: (userData as? UserType.RestauranteUser)?.restaurante?.direccion
                                         ?: ""
                                 )
+                                if (userData is UserType.RestauranteUser) {
+                                    ProfileField(
+                                        label = "Tipo de Comida",
+                                        value = userData.restaurante.tipoComida
+                                    )
+                                }
                                 ProfileField(
                                     label = "Teléfono",
                                     value = (userData as? UserType.ClientUser)?.cliente?.telefono

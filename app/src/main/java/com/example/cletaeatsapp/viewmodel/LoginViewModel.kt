@@ -6,8 +6,8 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.cletaeatsapp.data.model.UserType
 import com.example.cletaeatsapp.data.repository.CletaEatsRepository
-import com.example.cletaeatsapp.data.repository.UserType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,7 +19,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class LoginViewModel @Inject constructor(
-    private val repository: CletaEatsRepository,
+    internal val repository: CletaEatsRepository,
     private val dataStore: DataStore<Preferences>
 ) : ViewModel() {
     private val _cedula = MutableStateFlow("")
@@ -96,7 +96,6 @@ class LoginViewModel @Inject constructor(
                                 onSuccess(_cedula.value, userType)
                             }
                         }
-
                         is UserType.RepartidorUser -> {
                             if (userType.repartidor.estado == "inactivo") {
                                 _errorMessage.value = "Su cuenta está inactiva."
@@ -109,7 +108,14 @@ class LoginViewModel @Inject constructor(
                                 onSuccess(_cedula.value, userType)
                             }
                         }
-
+                        is UserType.RestauranteUser -> {
+                            _uiState.value = LoginUiState.Authenticated
+                            _userType.value = userType
+                            saveCedula(_cedula.value)
+                            _errorMessage.value = ""
+                            _fieldErrors.value = emptyMap()
+                            onSuccess(_cedula.value, userType)
+                        }
                         is UserType.AdminUser -> {
                             _uiState.value = LoginUiState.Authenticated
                             _userType.value = userType
@@ -118,13 +124,10 @@ class LoginViewModel @Inject constructor(
                             _fieldErrors.value = emptyMap()
                             onSuccess(_cedula.value, userType)
                         }
-
                         null -> {
                             _errorMessage.value = "Usuario no registrado o contraseña incorrecta."
                             _fieldErrors.value = mapOf("contrasena" to "Credenciales inválidas.")
                         }
-
-                        else -> _errorMessage.value = "Tipo de usuario no soportado."
                     }
                 }
             } catch (_: TimeoutCancellationException) {
@@ -141,7 +144,8 @@ class LoginViewModel @Inject constructor(
         val errors = mutableMapOf<String, String>()
         if (_cedula.value.isBlank()) errors["cedula"] = "Cédula o usuario es obligatorio."
         else if (_cedula.value != "admin" && !isCedulaValid(_cedula.value)) errors["cedula"] =
-            "Cédula debe tener 9 dígitos numéricos."
+            if (_cedula.value.startsWith("3")) "Cédula jurídica debe tener al menos 10 dígitos numéricos."
+            else "Cédula debe tener 9 dígitos numéricos."
         if (_contrasena.value.isBlank()) errors["contrasena"] = "Contraseña es obligatoria."
         _fieldErrors.value = errors
         return errors.values.firstOrNull()
@@ -193,14 +197,26 @@ class LoginViewModel @Inject constructor(
     }
 
     fun triggerNavigationEvent(event: NavigationEvent) {
-        _navigationEvent.value = event
+        _navigationEvent.value = when (event) {
+            is NavigationEvent.NavigateToLogin -> event
+            is NavigationEvent.NavigateToClientHome -> event
+            is NavigationEvent.NavigateToRepartidorOrders -> event
+            is NavigationEvent.NavigateToAdminReports -> event
+            is NavigationEvent.NavigateToRestauranteOrders -> event
+        }
     }
 
     fun clearNavigationEvent() {
         _navigationEvent.value = null
     }
 
-    private fun isCedulaValid(cedula: String) = cedula.length == 9 && cedula.all { it.isDigit() }
+    private fun isCedulaValid(cedula: String): Boolean {
+        return when {
+            cedula == "admin" -> true // Excepción para el admin
+            cedula.startsWith("3") -> cedula.length >= 10 && cedula.all { it.isDigit() } // Cédula jurídica
+            else -> cedula.length == 9 && cedula.all { it.isDigit() } // Cédula personal
+        }
+    }
 }
 
 sealed class NavigationEvent {
@@ -208,6 +224,7 @@ sealed class NavigationEvent {
     data class NavigateToClientHome(val cedula: String) : NavigationEvent()
     data class NavigateToRepartidorOrders(val cedula: String) : NavigationEvent()
     object NavigateToAdminReports : NavigationEvent()
+    data class NavigateToRestauranteOrders(val cedula: String) : NavigationEvent()
 }
 
 sealed class LoginUiState {

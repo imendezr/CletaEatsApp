@@ -31,6 +31,7 @@ fun OrdenCard(
     modifier: Modifier = Modifier,
     pedido: Pedido,
     onMarkDelivered: () -> Unit = {},
+    onMarkInTransit: () -> Unit = {}, // Nuevo parámetro añadido
     onClick: () -> Unit = {},
     isRepartidor: Boolean = false
 ) {
@@ -116,6 +117,14 @@ fun OrdenCard(
                     ) {
                         Text("Entregado")
                     }
+                } else if (!isRepartidor && pedido.estado == "en preparación") {
+                    // Opción para restaurante para marcar como "en camino"
+                    OutlinedButton(
+                        onClick = onMarkInTransit,
+                        modifier = Modifier.align(Alignment.CenterVertically)
+                    ) {
+                        Text("En Camino")
+                    }
                 }
             }
         }
@@ -130,6 +139,13 @@ fun StatusIndicator(estado: String) {
                 imageVector = Icons.Default.AccessTime,
                 contentDescription = "En preparación",
                 tint = MaterialTheme.colorScheme.secondary,
+                modifier = Modifier.size(24.dp)
+            )
+
+            "en camino" -> Icon(
+                imageVector = Icons.Default.AccessTime,
+                contentDescription = "En camino",
+                tint = MaterialTheme.colorScheme.tertiary,
                 modifier = Modifier.size(24.dp)
             )
 

@@ -1,10 +1,12 @@
 package com.example.cletaeatsapp.data.repository
 
 import android.content.Context
+import com.example.cletaeatsapp.data.model.Admin
 import com.example.cletaeatsapp.data.model.Cliente
 import com.example.cletaeatsapp.data.model.Pedido
 import com.example.cletaeatsapp.data.model.Repartidor
 import com.example.cletaeatsapp.data.model.Restaurante
+import com.example.cletaeatsapp.data.model.UserType
 import com.google.gson.Gson
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -282,8 +284,9 @@ class CletaEatsRepository(
                 getRepartidores().find { it.cedula == cedula && it.contrasena == contrasena }
             if (repartidor != null) return@withContext UserType.RepartidorUser(repartidor)
 
-            val restaurante = getRestaurantes().find { it.cedulaJuridica == cedula }
-            if (restaurante != null) return@withContext UserType.RestaurantUser(restaurante)
+            val restaurante =
+                getRestaurantes().find { it.cedulaJuridica == cedula && it.contrasena == contrasena }
+            if (restaurante != null) return@withContext UserType.RestauranteUser(restaurante)
 
             val admin = getAdmins().find { it.username == cedula && it.password == contrasena }
             if (admin != null) return@withContext UserType.AdminUser(admin)
@@ -310,6 +313,18 @@ class CletaEatsRepository(
         if (index >= 0) {
             repartidores[index] = repartidor
             saveRepartidores(repartidores)
+            true
+        } else {
+            false
+        }
+    }
+
+    suspend fun updateRestauranteProfile(restaurante: Restaurante) = withContext(Dispatchers.IO) {
+        val restaurantes = getRestaurantes().toMutableList()
+        val index = restaurantes.indexOfFirst { it.cedulaJuridica == restaurante.cedulaJuridica }
+        if (index >= 0) {
+            restaurantes[index] = restaurante
+            saveRestaurantes(restaurantes)
             true
         } else {
             false
@@ -358,14 +373,16 @@ class CletaEatsRepository(
                 cedulaJuridica = "300123456789",
                 nombre = "La Pizzeria",
                 direccion = "San José",
-                tipoComida = "Italiana"
+                tipoComida = "Italiana",
+                contrasena = "password"
             ),
             Restaurante(
                 id = UUID.randomUUID().toString(),
                 cedulaJuridica = "300987654321",
                 nombre = "Taco Loco",
                 direccion = "Heredia",
-                tipoComida = "Mexicana"
+                tipoComida = "Mexicana",
+                contrasena = "password"
             )
         )
         saveRestaurantes(mockRestaurants)
@@ -452,18 +469,4 @@ class CletaEatsRepository(
         }
         throw IOException("Failed after $times attempts")
     }
-}
-
-data class Admin(
-    val id: String,
-    val username: String,
-    val password: String
-)
-
-// Sealed class to represent authenticated user types
-sealed class UserType {
-    data class ClientUser(val cliente: Cliente) : UserType()
-    data class RepartidorUser(val repartidor: Repartidor) : UserType()
-    data class RestaurantUser(val restaurante: Restaurante) : UserType()
-    data class AdminUser(val admin: Admin) : UserType()
 }

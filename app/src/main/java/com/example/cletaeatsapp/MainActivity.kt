@@ -47,7 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.rememberNavController
-import com.example.cletaeatsapp.data.repository.UserType
+import com.example.cletaeatsapp.data.model.UserType
 import com.example.cletaeatsapp.ui.navigation.NavGraph
 import com.example.cletaeatsapp.ui.theme.CletaEatsAppTheme
 import com.example.cletaeatsapp.viewmodel.LoginViewModel
@@ -104,7 +104,6 @@ fun MainNavDrawer() {
                 }
                 loginViewModel.clearNavigationEvent()
             }
-
             is NavigationEvent.NavigateToClientHome -> {
                 navController.navigate("restaurants/${(navigationEvent as NavigationEvent.NavigateToClientHome).cedula}") {
                     popUpTo(0) { inclusive = true }
@@ -112,7 +111,6 @@ fun MainNavDrawer() {
                 }
                 loginViewModel.clearNavigationEvent()
             }
-
             is NavigationEvent.NavigateToRepartidorOrders -> {
                 navController.navigate("repartidor_orders/${(navigationEvent as NavigationEvent.NavigateToRepartidorOrders).cedula}") {
                     popUpTo(0) { inclusive = true }
@@ -120,7 +118,6 @@ fun MainNavDrawer() {
                 }
                 loginViewModel.clearNavigationEvent()
             }
-
             is NavigationEvent.NavigateToAdminReports -> {
                 navController.navigate("reports") {
                     popUpTo(0) { inclusive = true }
@@ -128,7 +125,6 @@ fun MainNavDrawer() {
                 }
                 loginViewModel.clearNavigationEvent()
             }
-
             else -> Unit
         }
     }
@@ -217,7 +213,6 @@ fun MainNavDrawer() {
                             }
                         )
                     }
-
                     is UserType.RepartidorUser -> {
                         DrawerItem(
                             text = "Perfil",
@@ -260,13 +255,24 @@ fun MainNavDrawer() {
                             }
                         )
                     }
-
                     is UserType.AdminUser -> {
                         DrawerItem(
                             text = "Reportes",
                             icon = Icons.Default.BarChart,
                             contentDescription = "Reportes administrativos",
                             tag = "drawer_reports",
+                            onClick = {
+                                scope.launch {
+                                    drawerState.close()
+                                    navController.navigate("reports")
+                                }
+                            }
+                        )
+                        DrawerItem(
+                            text = "Quejas",
+                            icon = Icons.Default.Warning,
+                            contentDescription = "Gestión de quejas",
+                            tag = "drawer_quejas",
                             onClick = {
                                 scope.launch {
                                     drawerState.close()
@@ -287,7 +293,38 @@ fun MainNavDrawer() {
                             }
                         )
                     }
-
+                    is UserType.RestauranteUser -> {
+                        DrawerItem(
+                            text = "Perfil",
+                            icon = Icons.Default.Person,
+                            contentDescription = "Perfil del restaurante",
+                            tag = "drawer_restaurante_profile",
+                            onClick = {
+                                scope.launch {
+                                    drawerState.close()
+                                    navController.navigate("profile")
+                                }
+                            }
+                        )
+                        DrawerItem(
+                            text = "Mis Pedidos",
+                            icon = Icons.Default.ShoppingCart,
+                            contentDescription = "Pedidos del restaurante",
+                            tag = "drawer_restaurante_orders",
+                            onClick = {
+                                scope.launch {
+                                    drawerState.close()
+                                    val restaurante = loginViewModel.repository.getRestaurantes()
+                                        .find { it.cedulaJuridica == cedula }
+                                    if (restaurante != null && cedula.isNotBlank()) {
+                                        navController.navigate("restaurante_orders/${restaurante.id}")
+                                    } else {
+                                        navController.navigate("login")
+                                    }
+                                }
+                            }
+                        )
+                    }
                     else -> Unit
                 }
             }

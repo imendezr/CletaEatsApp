@@ -40,7 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import com.example.cletaeatsapp.data.repository.UserType
+import com.example.cletaeatsapp.data.model.UserType
 import com.example.cletaeatsapp.ui.components.RequireRole
 import com.example.cletaeatsapp.ui.components.RestauranteCard
 import com.example.cletaeatsapp.viewmodel.LoginViewModel

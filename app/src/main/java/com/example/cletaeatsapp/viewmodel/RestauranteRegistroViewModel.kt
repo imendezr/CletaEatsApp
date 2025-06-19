@@ -21,6 +21,7 @@ class RestauranteRegistroViewModel @Inject constructor(
     var nombre = mutableStateOf("")
     var direccion = mutableStateOf("")
     var tipoComida = mutableStateOf("")
+    var contrasena = mutableStateOf("")
     var errorMessage = mutableStateOf<String?>(null)
     var isLoading = mutableStateOf(false)
 
@@ -61,7 +62,8 @@ class RestauranteRegistroViewModel @Inject constructor(
                         cedulaJuridica = cedulaJuridica.value,
                         nombre = nombre.value,
                         direccion = direccion.value,
-                        tipoComida = tipoComida.value
+                        tipoComida = tipoComida.value,
+                        contrasena = contrasena.value
                     )
                     val restaurantes = repository.getRestaurantes()
                     if (restaurantes.any { it.cedulaJuridica == cedulaJuridica.value }) {

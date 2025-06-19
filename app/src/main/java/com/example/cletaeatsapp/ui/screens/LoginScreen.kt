@@ -30,7 +30,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import com.example.cletaeatsapp.data.repository.UserType
+import com.example.cletaeatsapp.data.model.UserType
 import com.example.cletaeatsapp.viewmodel.LoginViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)

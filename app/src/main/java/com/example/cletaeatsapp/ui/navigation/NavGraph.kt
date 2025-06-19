@@ -9,7 +9,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.example.cletaeatsapp.data.model.Pedido
 import com.example.cletaeatsapp.data.model.Restaurante
-import com.example.cletaeatsapp.data.repository.UserType
+import com.example.cletaeatsapp.data.model.UserType
 import com.example.cletaeatsapp.ui.screens.ClienteOrdenesScreen
 import com.example.cletaeatsapp.ui.screens.FeedbackScreen
 import com.example.cletaeatsapp.ui.screens.LoginScreen
@@ -20,6 +20,7 @@ import com.example.cletaeatsapp.ui.screens.RepartidorQuejasScreen
 import com.example.cletaeatsapp.ui.screens.ReportesScreen
 import com.example.cletaeatsapp.ui.screens.RestauranteDetallesScreen
 import com.example.cletaeatsapp.ui.screens.RestauranteListadoScreen
+import com.example.cletaeatsapp.ui.screens.RestauranteOrdenesScreen
 import com.example.cletaeatsapp.ui.screens.RestauranteRegistroScreen
 import com.example.cletaeatsapp.viewmodel.ClienteOrdenViewModel
 import com.example.cletaeatsapp.viewmodel.LoginViewModel
@@ -57,7 +58,22 @@ fun NavGraph(
                                 launchSingleTop = true
                             }
 
-                            else -> Unit
+                            is UserType.RestauranteUser -> {
+                                // Obtener restauranteId desde la cédula jurídica
+                                val restaurante = loginViewModel.repository.getRestaurantes()
+                                    .find { it.cedulaJuridica == cedula }
+                                if (restaurante != null) {
+                                    navController.navigate("restaurante_orders/${restaurante.id}") {
+                                        popUpTo("login") { inclusive = true }
+                                        launchSingleTop = true
+                                    }
+                                } else {
+                                    navController.navigate("login") {
+                                        popUpTo("login") { inclusive = true }
+                                        launchSingleTop = true
+                                    }
+                                }
+                            }
                         }
                     }
                 },
@@ -197,6 +213,22 @@ fun NavGraph(
             RestauranteRegistroScreen(
                 navController = navController,
                 loginViewModel = loginViewModel
+            )
+        }
+        composable("restaurante_orders/{restauranteId}") { backStackEntry ->
+            val restauranteId = backStackEntry.arguments?.getString("restauranteId") ?: ""
+            if (restauranteId.isBlank()) {
+                navController.navigate("login") {
+                    popUpTo("login") { inclusive = true }
+                    launchSingleTop = true
+                }
+                return@composable
+            }
+            RestauranteOrdenesScreen(
+                restauranteId = restauranteId,
+                onOpenDrawer = { scope.launch { drawerState.open() } },
+                loginViewModel = loginViewModel,
+                navController = navController
             )
         }
     }
