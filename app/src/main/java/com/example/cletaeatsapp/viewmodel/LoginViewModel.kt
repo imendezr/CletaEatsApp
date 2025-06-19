@@ -84,7 +84,7 @@ class LoginViewModel @Inject constructor(
                 withTimeout(5000L) {
                     val userType = repository.authenticateUser(_cedula.value, _contrasena.value)
                     when (userType) {
-                        is UserType.ClientUser -> {
+                        is UserType.ClienteUser -> {
                             if (userType.cliente.estado == "suspendido") {
                                 _errorMessage.value = "Su cuenta está suspendida."
                             } else {

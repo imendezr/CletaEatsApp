@@ -43,7 +43,7 @@ fun NavGraph(
                     scope.launch {
                         loginViewModel.saveCedula(cedula)
                         when (userType) {
-                            is UserType.ClientUser -> navController.navigate("restaurants/$cedula") {
+                            is UserType.ClienteUser -> navController.navigate("restaurants/$cedula") {
                                 popUpTo("login") { inclusive = true }
                                 launchSingleTop = true
                             }
@@ -87,7 +87,7 @@ fun NavGraph(
                     scope.launch {
                         loginViewModel.saveCedula(cedula)
                         when (userType) {
-                            is UserType.ClientUser -> navController.navigate("restaurants/$cedula") {
+                            is UserType.ClienteUser -> navController.navigate("restaurants/$cedula") {
                                 popUpTo("register") { inclusive = true }
                                 launchSingleTop = true
                             }

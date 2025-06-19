@@ -278,7 +278,7 @@ class CletaEatsRepository(
     suspend fun authenticateUser(cedula: String, contrasena: String): UserType? =
         withContext(Dispatchers.IO) {
             val cliente = getClientes().find { it.cedula == cedula && it.contrasena == contrasena }
-            if (cliente != null) return@withContext UserType.ClientUser(cliente)
+            if (cliente != null) return@withContext UserType.ClienteUser(cliente)
 
             val repartidor =
                 getRepartidores().find { it.cedula == cedula && it.contrasena == contrasena }

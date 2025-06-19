@@ -59,7 +59,7 @@ fun FeedbackScreen(
     loginViewModel: LoginViewModel
 ) {
     RequireRole(
-        allowedRoles = setOf(UserType.ClientUser::class),
+        allowedRoles = setOf(UserType.ClienteUser::class),
         navController = navController,
         loginViewModel = loginViewModel
     ) {

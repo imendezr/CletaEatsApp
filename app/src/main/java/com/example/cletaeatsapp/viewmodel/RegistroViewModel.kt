@@ -157,7 +157,7 @@ class RegistroViewModel @Inject constructor(
                                 contrasena = _contrasena.value
                             )
                             if (repository.registerCliente(cliente)) {
-                                val userType = UserType.ClientUser(cliente)
+                                val userType = UserType.ClienteUser(cliente)
                                 saveCedula(_cedula.value)
                                 _errorMessage.value = ""
                                 _fieldErrors.value = emptyMap()

@@ -61,7 +61,7 @@ fun ClienteOrdenesScreen(
 ) {
     val userType by loginViewModel.userType.collectAsStateWithLifecycle()
     // Role validation
-    if (userType !is UserType.ClientUser) {
+    if (userType !is UserType.ClienteUser) {
         LaunchedEffect(Unit) {
             navController.navigate("login") {
                 popUpTo(0) { inclusive = true }

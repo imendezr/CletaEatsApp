@@ -171,7 +171,7 @@ fun MainNavDrawer() {
                     }
                 )
                 when (userType) {
-                    is UserType.ClientUser -> {
+                    is UserType.ClienteUser -> {
                         DrawerItem(
                             text = "Perfil",
                             icon = Icons.Default.Person,

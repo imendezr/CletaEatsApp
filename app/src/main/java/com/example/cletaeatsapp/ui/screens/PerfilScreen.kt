@@ -73,27 +73,27 @@ fun PerfilScreen(
     }
     var nombre by remember {
         mutableStateOf(
-            (userTypeState as? UserType.ClientUser)?.cliente?.nombre
+            (userTypeState as? UserType.ClienteUser)?.cliente?.nombre
                 ?: (userTypeState as? UserType.RepartidorUser)?.repartidor?.nombre
                 ?: (userTypeState as? UserType.RestauranteUser)?.restaurante?.nombre ?: ""
         )
     }
     var direccion by remember {
         mutableStateOf(
-            (userTypeState as? UserType.ClientUser)?.cliente?.direccion
+            (userTypeState as? UserType.ClienteUser)?.cliente?.direccion
                 ?: (userTypeState as? UserType.RepartidorUser)?.repartidor?.direccion
                 ?: (userTypeState as? UserType.RestauranteUser)?.restaurante?.direccion ?: ""
         )
     }
     var telefono by remember {
         mutableStateOf(
-            (userTypeState as? UserType.ClientUser)?.cliente?.telefono
+            (userTypeState as? UserType.ClienteUser)?.cliente?.telefono
                 ?: (userTypeState as? UserType.RepartidorUser)?.repartidor?.telefono ?: ""
         )
     }
     var correo by remember {
         mutableStateOf(
-            (userTypeState as? UserType.ClientUser)?.cliente?.correo
+            (userTypeState as? UserType.ClienteUser)?.cliente?.correo
                 ?: (userTypeState as? UserType.RepartidorUser)?.repartidor?.correo ?: ""
         )
     }
@@ -141,7 +141,7 @@ fun PerfilScreen(
         ) {
             Text(
                 text = when (userTypeState) {
-                    is UserType.ClientUser -> "Perfil del Cliente"
+                    is UserType.ClienteUser -> "Perfil del Cliente"
                     is UserType.RepartidorUser -> "Perfil del Repartidor"
                     is UserType.RestauranteUser -> "Perfil del Restaurante"
                     else -> "Perfil"
@@ -321,14 +321,14 @@ fun PerfilScreen(
                                 ProfileField(label = "Cédula", value = cedulaState, enabled = false)
                                 ProfileField(
                                     label = "Nombre",
-                                    value = (userData as? UserType.ClientUser)?.cliente?.nombre
+                                    value = (userData as? UserType.ClienteUser)?.cliente?.nombre
                                         ?: (userData as? UserType.RepartidorUser)?.repartidor?.nombre
                                         ?: (userData as? UserType.RestauranteUser)?.restaurante?.nombre
                                         ?: ""
                                 )
                                 ProfileField(
                                     label = "Dirección",
-                                    value = (userData as? UserType.ClientUser)?.cliente?.direccion
+                                    value = (userData as? UserType.ClienteUser)?.cliente?.direccion
                                         ?: (userData as? UserType.RepartidorUser)?.repartidor?.direccion
                                         ?: (userData as? UserType.RestauranteUser)?.restaurante?.direccion
                                         ?: ""
@@ -341,13 +341,13 @@ fun PerfilScreen(
                                 }
                                 ProfileField(
                                     label = "Teléfono",
-                                    value = (userData as? UserType.ClientUser)?.cliente?.telefono
+                                    value = (userData as? UserType.ClienteUser)?.cliente?.telefono
                                         ?: (userData as? UserType.RepartidorUser)?.repartidor?.telefono
                                         ?: ""
                                 )
                                 ProfileField(
                                     label = "Correo",
-                                    value = (userData as? UserType.ClientUser)?.cliente?.correo
+                                    value = (userData as? UserType.ClienteUser)?.cliente?.correo
                                         ?: (userData as? UserType.RepartidorUser)?.repartidor?.correo
                                         ?: ""
                                 )

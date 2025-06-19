@@ -39,7 +39,7 @@ class PerfilViewModel @Inject constructor(
                 val userType =
                     repository.authenticateUser(cedula, currentPassword) // Reauthenticate
                 val success = when (userType) {
-                    is UserType.ClientUser -> {
+                    is UserType.ClienteUser -> {
                         val updatedCliente = userType.cliente.copy(
                             cedula = cedula,
                             nombre = nombre,
