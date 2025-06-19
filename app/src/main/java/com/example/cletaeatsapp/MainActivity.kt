@@ -1,5 +1,7 @@
 package com.example.cletaeatsapp
 
+import android.content.Context
+import android.content.ContextWrapper
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -53,7 +55,6 @@ import com.example.cletaeatsapp.data.model.UserType
 import com.example.cletaeatsapp.ui.navigation.NavGraph
 import com.example.cletaeatsapp.ui.theme.CletaEatsAppTheme
 import com.example.cletaeatsapp.viewmodel.LoginViewModel
-import com.example.cletaeatsapp.viewmodel.NavigationEvent
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 
@@ -79,7 +80,6 @@ fun MainNavDrawer() {
     val loginViewModel: LoginViewModel = hiltViewModel()
     val userId by loginViewModel.userId.collectAsStateWithLifecycle()
     val userType by loginViewModel.userType.collectAsStateWithLifecycle()
-    val navigationEvent by loginViewModel.navigationEvent.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val windowSizeClass = calculateWindowSizeClass(context as ComponentActivity)
     val drawerWidth =
@@ -89,6 +89,10 @@ fun MainNavDrawer() {
     LaunchedEffect(userType) {
         if (userType == null) {
             scope.launch { drawerState.close() }
+            navController.navigate("login") {
+                popUpTo(0) { inclusive = true }
+                launchSingleTop = true
+            }
         }
     }
 
@@ -103,56 +107,6 @@ fun MainNavDrawer() {
             } else {
                 navController.popBackStack()
             }
-        }
-    }
-
-    // Handle navigation events
-    LaunchedEffect(navigationEvent) {
-        when (navigationEvent) {
-            is NavigationEvent.NavigateToClienteHome -> {
-                val id = (navigationEvent as NavigationEvent.NavigateToClienteHome).id
-                navController.navigate("restaurants/$id") {
-                    popUpTo(0) { inclusive = true }
-                    launchSingleTop = true
-                }
-                loginViewModel.clearNavigationEvent()
-            }
-
-            is NavigationEvent.NavigateToRepartidorHome -> {
-                val id = (navigationEvent as NavigationEvent.NavigateToRepartidorHome).id
-                navController.navigate("repartidor_orders/$id") {
-                    popUpTo(0) { inclusive = true }
-                    launchSingleTop = true
-                }
-                loginViewModel.clearNavigationEvent()
-            }
-
-            is NavigationEvent.NavigateToRestauranteOrders -> {
-                val id = (navigationEvent as NavigationEvent.NavigateToRestauranteOrders).id
-                navController.navigate("restaurante_orders/$id") {
-                    popUpTo(0) { inclusive = true }
-                    launchSingleTop = true
-                }
-                loginViewModel.clearNavigationEvent()
-            }
-
-            is NavigationEvent.NavigateToAdminHome -> {
-                navController.navigate("reports") {
-                    popUpTo(0) { inclusive = true }
-                    launchSingleTop = true
-                }
-                loginViewModel.clearNavigationEvent()
-            }
-
-            is NavigationEvent.NavigateToLogin -> {
-                navController.navigate("login") {
-                    popUpTo(0) { inclusive = true }
-                    launchSingleTop = true
-                }
-                loginViewModel.clearNavigationEvent()
-            }
-
-            else -> Unit
         }
     }
 
@@ -353,7 +307,7 @@ fun MainNavDrawer() {
 
                         else -> Unit
                     }
-                    /*Spacer(modifier = Modifier.weight(1f))
+                    Spacer(modifier = Modifier.weight(1f))
                     DrawerItem(
                         text = "Cerrar Sesión",
                         icon = Icons.AutoMirrored.Filled.ExitToApp,
@@ -363,9 +317,13 @@ fun MainNavDrawer() {
                             scope.launch {
                                 drawerState.close()
                                 loginViewModel.logout()
+                                navController.navigate("login") {
+                                    popUpTo(0) { inclusive = true }
+                                    launchSingleTop = true
+                                }
                             }
                         }
-                    )*/
+                    )
                 }
             }
         ) {
@@ -415,4 +373,9 @@ fun DrawerItem(
             color = MaterialTheme.colorScheme.onSurface
         )
     }
+}
+
+fun Context.findActivity(): ComponentActivity? = when (this) {
+    is ComponentActivity -> this
+    else -> (this as? ContextWrapper)?.baseContext?.findActivity()
 }

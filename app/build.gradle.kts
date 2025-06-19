@@ -46,8 +46,13 @@ android {
 }
 
 dependencies {
-    implementation("com.jakewharton.timber:timber:5.0.1")
-    implementation (libs.androidx.material.icons.extended)
+    implementation(libs.moshi.adapters)
+    ksp(libs.moshi.kotlin.codegen)
+    implementation(libs.moshi.kotlin)
+    implementation(libs.converter.moshi)
+    implementation(libs.logging.interceptor)
+    implementation(libs.timber)
+    implementation(libs.androidx.material.icons.extended)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.coil.compose)
     implementation(libs.retrofit)
@@ -64,7 +69,6 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
-    implementation(libs.gson)
     implementation(libs.androidx.material3.window.size.class1)
     implementation(libs.androidx.hilt.navigation.compose)
     implementation(libs.hilt.android)

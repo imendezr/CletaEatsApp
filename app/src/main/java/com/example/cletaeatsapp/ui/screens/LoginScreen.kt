@@ -22,7 +22,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,8 +31,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.example.cletaeatsapp.data.model.UserType
 import com.example.cletaeatsapp.viewmodel.LoginViewModel
-import com.example.cletaeatsapp.viewmodel.NavigationEvent
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -47,56 +46,6 @@ fun LoginScreen(
     val isLoading by loginViewModel.isLoading.collectAsStateWithLifecycle()
     val errorMessage by loginViewModel.errorMessage.collectAsStateWithLifecycle()
     val fieldErrors by loginViewModel.fieldErrors.collectAsStateWithLifecycle()
-    val navigationEvent by loginViewModel.navigationEvent.collectAsStateWithLifecycle()
-
-    LaunchedEffect(navigationEvent) {
-        when (navigationEvent) {
-            is NavigationEvent.NavigateToClienteHome -> {
-                val id = (navigationEvent as NavigationEvent.NavigateToClienteHome).id
-                navController.navigate("restaurants/$id") {
-                    popUpTo(0) { inclusive = true }
-                    launchSingleTop = true
-                }
-                loginViewModel.clearNavigationEvent()
-            }
-
-            is NavigationEvent.NavigateToRepartidorHome -> {
-                val id = (navigationEvent as NavigationEvent.NavigateToRepartidorHome).id
-                navController.navigate("repartidor_orders/$id") {
-                    popUpTo(0) { inclusive = true }
-                    launchSingleTop = true
-                }
-                loginViewModel.clearNavigationEvent()
-            }
-
-            is NavigationEvent.NavigateToRestauranteOrders -> {
-                val id = (navigationEvent as NavigationEvent.NavigateToRestauranteOrders).id
-                navController.navigate("restaurante_orders/$id") {
-                    popUpTo(0) { inclusive = true }
-                    launchSingleTop = true
-                }
-                loginViewModel.clearNavigationEvent()
-            }
-
-            is NavigationEvent.NavigateToAdminHome -> {
-                navController.navigate("reports") {
-                    popUpTo(0) { inclusive = true }
-                    launchSingleTop = true
-                }
-                loginViewModel.clearNavigationEvent()
-            }
-
-            is NavigationEvent.NavigateToLogin -> {
-                navController.navigate("login") {
-                    popUpTo(0) { inclusive = true }
-                    launchSingleTop = true
-                }
-                loginViewModel.clearNavigationEvent()
-            }
-
-            else -> Unit
-        }
-    }
 
     Scaffold(
         topBar = {
@@ -187,7 +136,31 @@ fun LoginScreen(
                             )
                         }
                         Button(
-                            onClick = { loginViewModel.login { _, _ -> } },
+                            onClick = {
+                                loginViewModel.login { cedula, userType ->
+                                    when (userType) {
+                                        is UserType.ClienteUser -> navController.navigate("restaurants/${userType.cliente.id}") {
+                                            popUpTo(0) { inclusive = true }
+                                            launchSingleTop = true
+                                        }
+
+                                        is UserType.RepartidorUser -> navController.navigate("repartidor_orders/${userType.repartidor.id}") {
+                                            popUpTo(0) { inclusive = true }
+                                            launchSingleTop = true
+                                        }
+
+                                        is UserType.RestauranteUser -> navController.navigate("restaurante_orders/${userType.restaurante.id}") {
+                                            popUpTo(0) { inclusive = true }
+                                            launchSingleTop = true
+                                        }
+
+                                        is UserType.AdminUser -> navController.navigate("reports") {
+                                            popUpTo(0) { inclusive = true }
+                                            launchSingleTop = true
+                                        }
+                                    }
+                                }
+                            },
                             modifier = Modifier.fillMaxWidth(),
                             enabled = !isLoading
                         ) {

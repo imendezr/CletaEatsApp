@@ -1,5 +1,8 @@
 package com.example.cletaeatsapp.data.model
 
+import com.squareup.moshi.JsonClass
+
+@JsonClass(generateAdapter = true)
 data class Cliente(
     val id: String,
     val cedula: String,

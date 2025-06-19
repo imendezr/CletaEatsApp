@@ -58,7 +58,6 @@ import androidx.navigation.NavController
 import com.example.cletaeatsapp.data.model.UserType
 import com.example.cletaeatsapp.viewmodel.LoginViewModel
 import com.example.cletaeatsapp.viewmodel.RestauranteRegistroViewModel
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
@@ -256,21 +255,16 @@ fun RestauranteRegistroScreen(
             }
             Button(
                 onClick = {
-                    viewModel.register { cedula, _ ->
-                        scope.launch {
-                            loginViewModel.saveCedula(cedula)
-                            val restaurante = loginViewModel.repository.getRestaurantes()
-                                .find { it.cedulaJuridica == cedula }
-                            if (restaurante != null) {
-                                navController.navigate("restaurante_orders/${restaurante.id}") {
-                                    popUpTo(0) { inclusive = true }
-                                    launchSingleTop = true
-                                }
-                            } else {
-                                navController.navigate("login") {
-                                    popUpTo(0) { inclusive = true }
-                                    launchSingleTop = true
-                                }
+                    viewModel.register { _, userType ->
+                        if (userType is UserType.RestauranteUser) {
+                            navController.navigate("restaurante_orders/${userType.restaurante.id}") {
+                                popUpTo(0) { inclusive = true }
+                                launchSingleTop = true
+                            }
+                        } else {
+                            navController.navigate("login") {
+                                popUpTo(0) { inclusive = true }
+                                launchSingleTop = true
                             }
                         }
                     }

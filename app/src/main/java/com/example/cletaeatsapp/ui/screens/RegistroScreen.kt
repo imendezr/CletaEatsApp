@@ -240,10 +240,30 @@ fun RegistroScreen(
                             )
                         }
                         Button(
-                            onClick = { registroViewModel.register(onRegisterSuccess) },
+                            onClick = {
+                                registroViewModel.register { cedula, userType ->
+                                    when (userType) {
+                                        is UserType.ClienteUser -> navController.navigate("restaurants/${userType.cliente.id}") {
+                                            popUpTo(0) { inclusive = true }
+                                            launchSingleTop = true
+                                        }
+
+                                        is UserType.RepartidorUser -> navController.navigate("repartidor_orders/${userType.repartidor.id}") {
+                                            popUpTo(0) { inclusive = true }
+                                            launchSingleTop = true
+                                        }
+
+                                        else -> navController.navigate("login") {
+                                            popUpTo(0) { inclusive = true }
+                                            launchSingleTop = true
+                                        }
+                                    }
+                                }
+                            },
                             modifier = Modifier.fillMaxWidth(),
                             enabled = !isLoading
                         ) {
+                            Text("Registrarse")
                         }
                         TextButton(
                             onClick = { navController.popBackStack() },

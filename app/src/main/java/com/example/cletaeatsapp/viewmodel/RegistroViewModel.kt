@@ -136,14 +136,12 @@ class RegistroViewModel @Inject constructor(
                                 correo = _correo.value,
                                 estado = "disponible",
                                 kmRecorridosDiarios = 0.0,
-                                costoPorKmHabiles = _costoPorKmHabiles.value.toDoubleOrNull()
-                                    ?: 1000.0,
-                                costoPorKmFeriados = _costoPorKmFeriados.value.toDoubleOrNull()
-                                    ?: 1500.0,
+                                costoPorKmHabiles = _costoPorKmHabiles.value.toDoubleOrNull() ?: 1000.0,
+                                costoPorKmFeriados = _costoPorKmFeriados.value.toDoubleOrNull() ?: 1500.0,
                                 amonestaciones = 0,
                                 quejas = emptyList(),
                                 contrasena = _contrasena.value,
-                                numeroTarjeta = _numeroTarjeta.value.takeIf { it.isNotBlank() }
+                                numeroTarjeta = _numeroTarjeta.value.ifBlank { null } // Permitir null
                             )
                             if (repository.registerRepartidor(repartidor)) {
                                 val userType = UserType.RepartidorUser(repartidor)

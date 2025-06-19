@@ -1,5 +1,9 @@
 package com.example.cletaeatsapp.viewmodel
 
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.cletaeatsapp.data.model.Restaurante
@@ -17,7 +21,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class RestauranteRegistroViewModel @Inject constructor(
-    private val repository: CletaEatsRepository
+    private val repository: CletaEatsRepository,
+    private val dataStore: DataStore<Preferences>
 ) : ViewModel() {
     // Existing state (unchanged)
     private val _cedulaJuridica = MutableStateFlow("")
@@ -151,6 +156,7 @@ class RestauranteRegistroViewModel @Inject constructor(
                     )
                     if (repository.registerRestaurante(restaurante)) {
                         val userType = UserType.RestauranteUser(restaurante)
+                        saveUserId(restaurante.id) // Guardar user_id
                         _errorMessage.value = ""
                         _fieldErrors.value = emptyMap()
                         onSuccess(_cedulaJuridica.value, userType)
@@ -166,6 +172,14 @@ class RestauranteRegistroViewModel @Inject constructor(
                 _errorMessage.value = "Error al registrar: ${e.message}"
             } finally {
                 _isLoading.value = false
+            }
+        }
+    }
+
+    private fun saveUserId(id: String) {
+        viewModelScope.launch {
+            dataStore.edit { preferences ->
+                preferences[stringPreferencesKey("user_id")] = id
             }
         }
     }
