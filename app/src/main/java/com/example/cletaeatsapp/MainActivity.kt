@@ -302,7 +302,7 @@ fun MainNavDrawer() {
                                 onClick = {
                                     scope.launch {
                                         drawerState.close()
-                                        navController.navigate("reports")
+                                        navController.navigate("repartidor_quejas")
                                     }
                                 }
                             )

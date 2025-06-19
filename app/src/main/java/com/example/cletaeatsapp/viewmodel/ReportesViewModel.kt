@@ -25,16 +25,14 @@ class ReportesViewModel @Inject constructor(
         loadReports()
     }
 
-    private fun loadReports() {
+    fun loadReports() {
         viewModelScope.launch {
             try {
-                val clientes = repository.getClientes()
-                val repartidores = repository.getRepartidores()
-                val restaurantes = repository.getRestaurantes()
-                val pedidos = repository.getPedidos()
                 val activeClients = repository.getActiveClients()
                 val suspendedClients = repository.getSuspendedClients()
                 val repartidoresSinAmonestaciones = repository.getRepartidoresSinAmonestaciones()
+                val restaurantes = repository.getRestaurantes()
+                val pedidos = repository.getPedidos()
                 val revenueByRestaurant = repository.getTotalRevenueByRestaurant()
                 val restauranteConMasPedidos = repository.getRestauranteConMasPedidos()
                 val restauranteConMenosPedidos = repository.getRestauranteConMenosPedidos()
@@ -49,7 +47,6 @@ class ReportesViewModel @Inject constructor(
                     suspendedClients = suspendedClients,
                     repartidoresSinAmonestaciones = repartidoresSinAmonestaciones,
                     restaurantes = restaurantes,
-                    pedidos = pedidos,
                     revenueByRestaurant = revenueByRestaurant,
                     restauranteConMasPedidos = restauranteConMasPedidos,
                     restauranteConMenosPedidos = restauranteConMenosPedidos,
@@ -67,13 +64,12 @@ class ReportesViewModel @Inject constructor(
 }
 
 sealed class ReportsUiState {
-    data object Loading : ReportsUiState()
+    object Loading : ReportsUiState()
     data class Success(
         val activeClients: List<Cliente>,
         val suspendedClients: List<Cliente>,
         val repartidoresSinAmonestaciones: List<Repartidor>,
         val restaurantes: List<Restaurante>,
-        val pedidos: List<Pedido>,
         val revenueByRestaurant: Map<String, Double>,
         val restauranteConMasPedidos: Restaurante?,
         val restauranteConMenosPedidos: Restaurante?,
