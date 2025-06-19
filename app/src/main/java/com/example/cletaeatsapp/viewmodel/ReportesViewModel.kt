@@ -2,6 +2,9 @@ package com.example.cletaeatsapp.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.cletaeatsapp.data.model.Cliente
+import com.example.cletaeatsapp.data.model.Pedido
+import com.example.cletaeatsapp.data.model.Repartidor
 import com.example.cletaeatsapp.data.model.Restaurante
 import com.example.cletaeatsapp.data.repository.CletaEatsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -25,34 +28,60 @@ class ReportesViewModel @Inject constructor(
     private fun loadReports() {
         viewModelScope.launch {
             try {
-                val restaurants =
-                    repository.getRestaurantes().associateBy { it.id } // Map for O(1) lookup
-                val revenue = repository.getTotalRevenueByRestaurant()
-                val revenueData = revenue.mapNotNull { (restaurantId, total) ->
-                    restaurants[restaurantId]?.let { restaurant ->
-                        Pair(restaurant.nombre, total)
-                    }
-                }
+                val clientes = repository.getClientes()
+                val repartidores = repository.getRepartidores()
+                val restaurantes = repository.getRestaurantes()
+                val pedidos = repository.getPedidos()
+                val activeClients = repository.getActiveClients()
+                val suspendedClients = repository.getSuspendedClients()
+                val repartidoresSinAmonestaciones = repository.getRepartidoresSinAmonestaciones()
+                val revenueByRestaurant = repository.getTotalRevenueByRestaurant()
+                val restauranteConMasPedidos = repository.getRestauranteConMasPedidos()
+                val restauranteConMenosPedidos = repository.getRestauranteConMenosPedidos()
+                val quejasPorRepartidor = repository.getQuejasPorRepartidor()
+                val pedidosPorCliente = repository.getPedidosPorCliente()
+                val clienteConMasPedidos = repository.getClienteConMasPedidos()
+                val horaPico = repository.getHoraPicoPedidos()
+                val totalRevenue = pedidos.sumOf { it.total }
+
                 _uiState.value = ReportsUiState.Success(
-                    revenueByRestaurant = revenueData.associate { it.first to it.second },
-                    restaurants = restaurants.values.toList()
+                    activeClients = activeClients,
+                    suspendedClients = suspendedClients,
+                    repartidoresSinAmonestaciones = repartidoresSinAmonestaciones,
+                    restaurantes = restaurantes,
+                    pedidos = pedidos,
+                    revenueByRestaurant = revenueByRestaurant,
+                    restauranteConMasPedidos = restauranteConMasPedidos,
+                    restauranteConMenosPedidos = restauranteConMenosPedidos,
+                    quejasPorRepartidor = quejasPorRepartidor,
+                    pedidosPorCliente = pedidosPorCliente,
+                    clienteConMasPedidos = clienteConMasPedidos,
+                    horaPico = horaPico,
+                    totalRevenue = totalRevenue
                 )
             } catch (e: Exception) {
                 _uiState.value = ReportsUiState.Error("Error al cargar reportes: ${e.message}")
             }
         }
     }
-
-    fun getRestaurantName(restaurantId: String, restaurants: List<Restaurante>): String? {
-        return restaurants.find { it.id == restaurantId }?.nombre
-    }
 }
 
 sealed class ReportsUiState {
     data object Loading : ReportsUiState()
     data class Success(
-        val revenueByRestaurant: Map<String, Double>, // Changed from Map<String, Double> with IDs to names
-        val restaurants: List<Restaurante>
+        val activeClients: List<Cliente>,
+        val suspendedClients: List<Cliente>,
+        val repartidoresSinAmonestaciones: List<Repartidor>,
+        val restaurantes: List<Restaurante>,
+        val pedidos: List<Pedido>,
+        val revenueByRestaurant: Map<String, Double>,
+        val restauranteConMasPedidos: Restaurante?,
+        val restauranteConMenosPedidos: Restaurante?,
+        val quejasPorRepartidor: Map<String, List<String>>,
+        val pedidosPorCliente: Map<String, List<Pedido>>,
+        val clienteConMasPedidos: Cliente?,
+        val horaPico: String?,
+        val totalRevenue: Double
     ) : ReportsUiState()
 
     data class Error(val message: String) : ReportsUiState()

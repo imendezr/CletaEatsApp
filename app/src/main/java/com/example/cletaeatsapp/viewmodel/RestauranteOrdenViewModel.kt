@@ -48,12 +48,13 @@ class RestauranteOrdenViewModel @Inject constructor(
             _isLoading.value = true
             try {
                 val pedidosDeferred = async { repository.getPedidos() }
-                val restaurantesDeferred = async { repository.getRestaurantes().associateBy { it.id } }
+                val restaurantesDeferred =
+                    async { repository.getRestaurantes().associateBy { it.id } }
                 val pedidos = pedidosDeferred.await()
                 val restaurantes = restaurantesDeferred.await()
                 val updatedPedidos = pedidos.map { pedido ->
                     pedido.copy(
-                        restaurantName = restaurantes[pedido.restauranteId]?.nombre
+                        nombreRestaurante = restaurantes[pedido.restauranteId]?.nombre
                             ?: pedido.restauranteId
                     )
                 }
@@ -71,6 +72,16 @@ class RestauranteOrdenViewModel @Inject constructor(
         viewModelScope.launch {
             _isLoading.value = true
             try {
+                if (newStatus !in listOf(
+                        "en preparación",
+                        "en camino",
+                        "entregado",
+                        "suspendido"
+                    )
+                ) {
+                    _errorMessage.value = "Estado inválido."
+                    return@launch
+                }
                 val success = repository.updateOrderStatus(orderId, newStatus)
                 if (success) {
                     _errorMessage.value = null

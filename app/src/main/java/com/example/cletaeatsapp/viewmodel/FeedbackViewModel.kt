@@ -31,16 +31,27 @@ class FeedbackViewModel @Inject constructor(
             _errorMessage.value = "Por favor seleccione una calificación"
             return
         }
+        if (comentario.value.length > 500) {
+            _errorMessage.value = "El comentario no puede exceder los 500 caracteres"
+            return
+        }
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                repository.addQueja(
+                val success = repository.addQueja(
                     repartidorId = repartidorId,
-                    queja = comentario.value,
+                    queja = comentario.value.trim(),
                     addAmonestacion = rating.intValue < 3
                 )
                 _isLoading.value = false
-                onSuccess()
+                if (success) {
+                    rating.intValue = 0
+                    comentario.value = ""
+                    _errorMessage.value = null
+                    onSuccess()
+                } else {
+                    _errorMessage.value = "No se pudo registrar el feedback"
+                }
             } catch (e: Exception) {
                 _isLoading.value = false
                 _errorMessage.value = "Error al enviar feedback: ${e.message}"

@@ -43,8 +43,11 @@ fun RepartidorQuejasScreen(
     loginViewModel: LoginViewModel,
     navController: NavController
 ) {
+    val userType by loginViewModel.userType.collectAsStateWithLifecycle()
+    val repartidorId = (userType as? UserType.RepartidorUser)?.repartidor?.id
+
     RequireRole(
-        allowedRoles = setOf(UserType.RepartidorUser::class),
+        allowedRoles = setOf(UserType.RepartidorUser::class, UserType.AdminUser::class),
         navController = navController,
         loginViewModel = loginViewModel
     ) {
@@ -69,7 +72,6 @@ fun RepartidorQuejasScreen(
                             Icon(
                                 Icons.AutoMirrored.Filled.ExitToApp,
                                 contentDescription = "Cerrar sesión",
-                                tint = MaterialTheme.colorScheme.onSurface
                             )
                         }
                     }
@@ -104,8 +106,14 @@ fun RepartidorQuejasScreen(
                             color = MaterialTheme.colorScheme.primary
                         )
                         Spacer(modifier = Modifier.height(16.dp))
+                        val filteredRepartidores =
+                            if (userType is UserType.RepartidorUser && repartidorId != null) {
+                                state.repartidores.filter { it.id == repartidorId }
+                            } else {
+                                state.repartidores
+                            }
                         LazyColumn {
-                            items(state.repartidores, key = { it.id }) { repartidor ->
+                            items(filteredRepartidores, key = { it.id }) { repartidor ->
                                 Card(
                                     modifier = Modifier
                                         .fillMaxWidth()

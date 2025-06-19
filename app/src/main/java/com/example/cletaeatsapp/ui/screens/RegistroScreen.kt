@@ -8,10 +8,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -30,6 +28,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
+import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
+import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -37,6 +38,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -46,9 +48,9 @@ import androidx.navigation.NavController
 import com.example.cletaeatsapp.data.model.UserType
 import com.example.cletaeatsapp.viewmodel.RegistroViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
-fun RegisterScreen(
+fun RegistroScreen(
     navController: NavController,
     onRegisterSuccess: (String, UserType) -> Unit,
     registroViewModel: RegistroViewModel = hiltViewModel()
@@ -59,18 +61,23 @@ fun RegisterScreen(
     val telefono by registroViewModel.telefono.collectAsStateWithLifecycle()
     val correo by registroViewModel.correo.collectAsStateWithLifecycle()
     val contrasena by registroViewModel.contrasena.collectAsStateWithLifecycle()
-    val distancia by registroViewModel.distancia.collectAsStateWithLifecycle()
-    val costoPorKm by registroViewModel.costoPorKm.collectAsStateWithLifecycle()
+    val numeroTarjeta by registroViewModel.numeroTarjeta.collectAsStateWithLifecycle()
+    val costoPorKmHabiles by registroViewModel.costoPorKmHabiles.collectAsStateWithLifecycle()
+    val costoPorKmFeriados by registroViewModel.costoPorKmFeriados.collectAsStateWithLifecycle()
     val tipoUsuario by registroViewModel.tipoUsuario.collectAsStateWithLifecycle()
     val isLoading by registroViewModel.isLoading.collectAsStateWithLifecycle()
     val errorMessage by registroViewModel.errorMessage.collectAsStateWithLifecycle()
     val fieldErrors by registroViewModel.fieldErrors.collectAsStateWithLifecycle()
     val scrollState = rememberScrollState()
+    val context = LocalContext.current
+    val windowSizeClass = calculateWindowSizeClass(context as androidx.activity.ComponentActivity)
+    val isExpanded = windowSizeClass.widthSizeClass == WindowWidthSizeClass.Expanded
+    val padding = if (isExpanded) 32.dp else 16.dp
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Registrarse", style = MaterialTheme.typography.headlineSmall) }
+                title = { Text("Registrarse", style = MaterialTheme.typography.titleLarge) }
             )
         }
     ) { innerPadding ->
@@ -78,16 +85,15 @@ fun RegisterScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 16.dp)
+                .padding(padding)
                 .verticalScroll(scrollState),
-            verticalArrangement = Arrangement.Center,
+            verticalArrangement = Arrangement.spacedBy(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
                 text = "Registrarse",
                 style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(bottom = 24.dp)
+                color = MaterialTheme.colorScheme.primary
             )
             AnimatedContent(
                 targetState = isLoading,
@@ -99,7 +105,7 @@ fun RegisterScreen(
                 } else {
                     Column(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         OutlinedTextField(
                             value = cedula,
@@ -109,15 +115,11 @@ fun RegisterScreen(
                             isError = fieldErrors["cedula"] != null,
                             supportingText = {
                                 fieldErrors["cedula"]?.let {
-                                    Text(
-                                        it,
-                                        color = MaterialTheme.colorScheme.error
-                                    )
+                                    Text(it, color = MaterialTheme.colorScheme.error)
                                 }
                             },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
                         OutlinedTextField(
                             value = nombre,
                             onValueChange = registroViewModel::updateNombre,
@@ -126,14 +128,10 @@ fun RegisterScreen(
                             isError = fieldErrors["nombre"] != null,
                             supportingText = {
                                 fieldErrors["nombre"]?.let {
-                                    Text(
-                                        it,
-                                        color = MaterialTheme.colorScheme.error
-                                    )
+                                    Text(it, color = MaterialTheme.colorScheme.error)
                                 }
                             }
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
                         OutlinedTextField(
                             value = direccion,
                             onValueChange = registroViewModel::updateDireccion,
@@ -142,14 +140,10 @@ fun RegisterScreen(
                             isError = fieldErrors["direccion"] != null,
                             supportingText = {
                                 fieldErrors["direccion"]?.let {
-                                    Text(
-                                        it,
-                                        color = MaterialTheme.colorScheme.error
-                                    )
+                                    Text(it, color = MaterialTheme.colorScheme.error)
                                 }
                             }
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
                         OutlinedTextField(
                             value = telefono,
                             onValueChange = registroViewModel::updateTelefono,
@@ -158,15 +152,11 @@ fun RegisterScreen(
                             isError = fieldErrors["telefono"] != null,
                             supportingText = {
                                 fieldErrors["telefono"]?.let {
-                                    Text(
-                                        it,
-                                        color = MaterialTheme.colorScheme.error
-                                    )
+                                    Text(it, color = MaterialTheme.colorScheme.error)
                                 }
                             },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
                         OutlinedTextField(
                             value = correo,
                             onValueChange = registroViewModel::updateCorreo,
@@ -175,15 +165,24 @@ fun RegisterScreen(
                             isError = fieldErrors["correo"] != null,
                             supportingText = {
                                 fieldErrors["correo"]?.let {
-                                    Text(
-                                        it,
-                                        color = MaterialTheme.colorScheme.error
-                                    )
+                                    Text(it, color = MaterialTheme.colorScheme.error)
                                 }
                             },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = numeroTarjeta,
+                            onValueChange = registroViewModel::updateNumeroTarjeta,
+                            label = { Text(if (tipoUsuario == "Cliente") "Número de Tarjeta" else "Número de Tarjeta (opcional)") },
+                            modifier = Modifier.fillMaxWidth(),
+                            isError = fieldErrors["numeroTarjeta"] != null,
+                            supportingText = {
+                                fieldErrors["numeroTarjeta"]?.let {
+                                    Text(it, color = MaterialTheme.colorScheme.error)
+                                }
+                            },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                        )
                         DropdownMenuBox(
                             options = listOf("Cliente", "Repartidor"),
                             selectedOption = tipoUsuario,
@@ -192,42 +191,33 @@ fun RegisterScreen(
                             modifier = Modifier.fillMaxWidth()
                         )
                         if (tipoUsuario == "Repartidor") {
-                            Spacer(modifier = Modifier.height(8.dp))
                             OutlinedTextField(
-                                value = distancia,
-                                onValueChange = registroViewModel::updateDistancia,
-                                label = { Text("Distancia (km)") },
+                                value = costoPorKmHabiles,
+                                onValueChange = registroViewModel::updateCostoPorKmHabiles,
+                                label = { Text("Costo por km (Hábiles)") },
                                 modifier = Modifier.fillMaxWidth(),
-                                isError = fieldErrors["distancia"] != null,
+                                isError = fieldErrors["costoPorKmHabiles"] != null,
                                 supportingText = {
-                                    fieldErrors["distancia"]?.let {
-                                        Text(
-                                            it,
-                                            color = MaterialTheme.colorScheme.error
-                                        )
+                                    fieldErrors["costoPorKmHabiles"]?.let {
+                                        Text(it, color = MaterialTheme.colorScheme.error)
                                     }
                                 },
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
                             OutlinedTextField(
-                                value = costoPorKm,
-                                onValueChange = registroViewModel::updateCostoPorKm,
-                                label = { Text("Costo por km") },
+                                value = costoPorKmFeriados,
+                                onValueChange = registroViewModel::updateCostoPorKmFeriados,
+                                label = { Text("Costo por km (Feriados)") },
                                 modifier = Modifier.fillMaxWidth(),
-                                isError = fieldErrors["costoPorKm"] != null,
+                                isError = fieldErrors["costoPorKmFeriados"] != null,
                                 supportingText = {
-                                    fieldErrors["costoPorKm"]?.let {
-                                        Text(
-                                            it,
-                                            color = MaterialTheme.colorScheme.error
-                                        )
+                                    fieldErrors["costoPorKmFeriados"]?.let {
+                                        Text(it, color = MaterialTheme.colorScheme.error)
                                     }
                                 },
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                             )
                         }
-                        Spacer(modifier = Modifier.height(8.dp))
                         OutlinedTextField(
                             value = contrasena,
                             onValueChange = registroViewModel::updateContrasena,
@@ -237,20 +227,15 @@ fun RegisterScreen(
                             isError = fieldErrors["contrasena"] != null,
                             supportingText = {
                                 fieldErrors["contrasena"]?.let {
-                                    Text(
-                                        it,
-                                        color = MaterialTheme.colorScheme.error
-                                    )
+                                    Text(it, color = MaterialTheme.colorScheme.error)
                                 }
                             }
                         )
-                        Spacer(modifier = Modifier.height(16.dp))
                         errorMessage.takeIf { it.isNotBlank() }?.let {
                             Text(
                                 text = it,
                                 color = MaterialTheme.colorScheme.error,
-                                style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.padding(bottom = 8.dp)
+                                style = MaterialTheme.typography.bodyMedium
                             )
                         }
                         Button(
@@ -260,7 +245,6 @@ fun RegisterScreen(
                         ) {
                             Text("Registrarse")
                         }
-                        Spacer(modifier = Modifier.height(8.dp))
                         TextButton(
                             onClick = { navController.popBackStack() },
                             enabled = !isLoading

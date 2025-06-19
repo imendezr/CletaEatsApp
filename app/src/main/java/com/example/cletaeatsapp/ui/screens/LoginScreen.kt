@@ -22,30 +22,81 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import com.example.cletaeatsapp.data.model.UserType
 import com.example.cletaeatsapp.viewmodel.LoginViewModel
+import com.example.cletaeatsapp.viewmodel.NavigationEvent
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
     navController: NavController,
     modifier: Modifier = Modifier,
-    onLoginSuccess: (String, UserType) -> Unit,
-    loginViewModel: LoginViewModel
+    loginViewModel: LoginViewModel = hiltViewModel()
 ) {
-    val cedula by loginViewModel.cedula.collectAsStateWithLifecycle()
+    val cedula by loginViewModel.cedulaFlow.collectAsStateWithLifecycle()
     val contrasena by loginViewModel.contrasena.collectAsStateWithLifecycle()
     val isLoading by loginViewModel.isLoading.collectAsStateWithLifecycle()
     val errorMessage by loginViewModel.errorMessage.collectAsStateWithLifecycle()
     val fieldErrors by loginViewModel.fieldErrors.collectAsStateWithLifecycle()
+    val navigationEvent by loginViewModel.navigationEvent.collectAsStateWithLifecycle()
+
+    LaunchedEffect(navigationEvent) {
+        when (navigationEvent) {
+            is NavigationEvent.NavigateToClienteHome -> {
+                val id = (navigationEvent as NavigationEvent.NavigateToClienteHome).id
+                navController.navigate("restaurants/$id") {
+                    popUpTo(0) { inclusive = true }
+                    launchSingleTop = true
+                }
+                loginViewModel.clearNavigationEvent()
+            }
+
+            is NavigationEvent.NavigateToRepartidorHome -> {
+                val id = (navigationEvent as NavigationEvent.NavigateToRepartidorHome).id
+                navController.navigate("repartidor_orders/$id") {
+                    popUpTo(0) { inclusive = true }
+                    launchSingleTop = true
+                }
+                loginViewModel.clearNavigationEvent()
+            }
+
+            is NavigationEvent.NavigateToRestauranteOrders -> {
+                val id = (navigationEvent as NavigationEvent.NavigateToRestauranteOrders).id
+                navController.navigate("restaurante_orders/$id") {
+                    popUpTo(0) { inclusive = true }
+                    launchSingleTop = true
+                }
+                loginViewModel.clearNavigationEvent()
+            }
+
+            is NavigationEvent.NavigateToAdminHome -> {
+                navController.navigate("reports") {
+                    popUpTo(0) { inclusive = true }
+                    launchSingleTop = true
+                }
+                loginViewModel.clearNavigationEvent()
+            }
+
+            is NavigationEvent.NavigateToLogin -> {
+                navController.navigate("login") {
+                    popUpTo(0) { inclusive = true }
+                    launchSingleTop = true
+                }
+                loginViewModel.clearNavigationEvent()
+            }
+
+            else -> Unit
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -85,16 +136,21 @@ fun LoginScreen(
                             onValueChange = loginViewModel::updateCedula,
                             label = { Text("Cédula o usuario") },
                             modifier = Modifier.fillMaxWidth(),
-                            isError = fieldErrors["cedula"] != null,
+                            isError = fieldErrors.containsKey("cedula") || fieldErrors.containsKey("general"),
                             supportingText = {
                                 fieldErrors["cedula"]?.let {
                                     Text(
-                                        it,
+                                        text = it,
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                } ?: fieldErrors["general"]?.let {
+                                    Text(
+                                        text = it,
                                         color = MaterialTheme.colorScheme.error
                                     )
                                 }
                             },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text) // Allow text for admin
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         OutlinedTextField(
@@ -103,15 +159,23 @@ fun LoginScreen(
                             label = { Text("Contraseña") },
                             modifier = Modifier.fillMaxWidth(),
                             visualTransformation = PasswordVisualTransformation(),
-                            isError = fieldErrors["contrasena"] != null,
+                            isError = fieldErrors.containsKey("contrasena") || fieldErrors.containsKey(
+                                "general"
+                            ),
                             supportingText = {
                                 fieldErrors["contrasena"]?.let {
                                     Text(
-                                        it,
+                                        text = it,
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                } ?: fieldErrors["general"]?.let {
+                                    Text(
+                                        text = it,
                                         color = MaterialTheme.colorScheme.error
                                     )
                                 }
-                            }
+                            },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         errorMessage.takeIf { it.isNotBlank() }?.let {
@@ -123,7 +187,7 @@ fun LoginScreen(
                             )
                         }
                         Button(
-                            onClick = { loginViewModel.login(onLoginSuccess) },
+                            onClick = { loginViewModel.login { _, _ -> /* Handled by navigationEvent */ } },
                             modifier = Modifier.fillMaxWidth(),
                             enabled = !isLoading
                         ) {

@@ -6,5 +6,12 @@ data class Restaurante(
     val nombre: String,
     val direccion: String,
     val tipoComida: String,
-    val contrasena: String
+    val contrasena: String,
+    val combos: List<RestauranteCombo> // Lista de combos
+)
+
+data class RestauranteCombo(
+    val numero: Int, // 1 a 9
+    val nombre: String, // Nombre del combo
+    val precio: Double // Precio del combo
 )

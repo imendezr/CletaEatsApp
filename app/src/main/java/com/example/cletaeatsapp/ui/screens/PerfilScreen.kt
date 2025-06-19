@@ -7,12 +7,14 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
@@ -28,6 +30,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
+import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
+import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -36,6 +41,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -45,7 +52,7 @@ import com.example.cletaeatsapp.data.model.UserType
 import com.example.cletaeatsapp.viewmodel.LoginViewModel
 import com.example.cletaeatsapp.viewmodel.PerfilViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
 fun PerfilScreen(
     onOpenDrawer: () -> Unit,
@@ -57,20 +64,19 @@ fun PerfilScreen(
     val cedulaState by loginViewModel.cedulaFlow.collectAsStateWithLifecycle()
     val isLoadingState by loginViewModel.isLoading.collectAsStateWithLifecycle()
     val userTypeState by loginViewModel.userType.collectAsStateWithLifecycle()
+    val errorMessage by perfilViewModel.errorMessage.collectAsStateWithLifecycle()
+    val fieldErrors by perfilViewModel.fieldErrors.collectAsStateWithLifecycle()
     var isEditing by remember { mutableStateOf(false) }
     var showPasswordChange by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
+    val context = LocalContext.current
+    val windowSizeClass = calculateWindowSizeClass(context as androidx.activity.ComponentActivity)
+    val isExpanded = windowSizeClass.widthSizeClass == WindowWidthSizeClass.Expanded
+    val padding = if (isExpanded) 32.dp else 16.dp
 
-    // Lift all editable fields to outer scope
     var currentPassword by remember { mutableStateOf("") }
     var newPassword by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
-    var distancia by remember {
-        mutableStateOf((userTypeState as? UserType.RepartidorUser)?.repartidor?.distancia?.toString() ?: "")
-    }
-    var costoPorKm by remember {
-        mutableStateOf((userTypeState as? UserType.RepartidorUser)?.repartidor?.costoPorKm?.toString() ?: "")
-    }
     var nombre by remember {
         mutableStateOf(
             (userTypeState as? UserType.ClienteUser)?.cliente?.nombre
@@ -97,6 +103,24 @@ fun PerfilScreen(
                 ?: (userTypeState as? UserType.RepartidorUser)?.repartidor?.correo ?: ""
         )
     }
+    var numeroTarjeta by remember {
+        mutableStateOf(
+            (userTypeState as? UserType.ClienteUser)?.cliente?.numeroTarjeta
+                ?: (userTypeState as? UserType.RepartidorUser)?.repartidor?.numeroTarjeta ?: ""
+        )
+    }
+    var costoPorKmHabiles by remember {
+        mutableStateOf(
+            (userTypeState as? UserType.RepartidorUser)?.repartidor?.costoPorKmHabiles?.toString()
+                ?: ""
+        )
+    }
+    var costoPorKmFeriados by remember {
+        mutableStateOf(
+            (userTypeState as? UserType.RepartidorUser)?.repartidor?.costoPorKmFeriados?.toString()
+                ?: ""
+        )
+    }
     var tipoComida by remember {
         mutableStateOf((userTypeState as? UserType.RestauranteUser)?.restaurante?.tipoComida ?: "")
     }
@@ -113,7 +137,7 @@ fun PerfilScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Perfil", style = MaterialTheme.typography.headlineSmall) },
+                title = { Text("Perfil", style = MaterialTheme.typography.titleLarge) },
                 navigationIcon = {
                     IconButton(onClick = onOpenDrawer) {
                         Icon(Icons.Default.Menu, contentDescription = "Abrir menú")
@@ -135,8 +159,9 @@ fun PerfilScreen(
             modifier = modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.Top,
+                .padding(padding)
+                .verticalScroll(scrollState),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
             horizontalAlignment = Alignment.Start
         ) {
             Text(
@@ -147,8 +172,7 @@ fun PerfilScreen(
                     else -> "Perfil"
                 },
                 style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(top = 16.dp, bottom = 24.dp)
+                color = MaterialTheme.colorScheme.primary
             )
             AnimatedContent(
                 targetState = isLoadingState,
@@ -157,16 +181,13 @@ fun PerfilScreen(
             ) { loading ->
                 if (loading) {
                     CircularProgressIndicator(
-                        modifier = Modifier
-                            .align(Alignment.CenterHorizontally)
-                            .padding(16.dp)
+                        modifier = Modifier.align(Alignment.CenterHorizontally)
                     )
                 } else if (cedulaState.isBlank() || userTypeState == null) {
                     Text(
                         text = "No hay datos de usuario disponibles. Inicie sesión.",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.padding(bottom = 16.dp)
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 } else {
                     val userData = userTypeState!!
@@ -177,138 +198,195 @@ fun PerfilScreen(
                     ) { editing ->
                         if (editing) {
                             Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .verticalScroll(scrollState)
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 ProfileField(label = "Cédula", value = cedulaState, enabled = false)
-                                Spacer(modifier = Modifier.height(8.dp))
                                 OutlinedTextField(
                                     value = nombre,
                                     onValueChange = { nombre = it },
                                     label = { Text("Nombre") },
                                     modifier = Modifier.fillMaxWidth(),
-                                    enabled = true,
-                                    isError = false,
-                                    supportingText = { }
+                                    isError = fieldErrors["nombre"] != null,
+                                    supportingText = {
+                                        fieldErrors["nombre"]?.let {
+                                            Text(it, color = MaterialTheme.colorScheme.error)
+                                        }
+                                    }
                                 )
-                                Spacer(modifier = Modifier.height(8.dp))
                                 OutlinedTextField(
                                     value = direccion,
                                     onValueChange = { direccion = it },
                                     label = { Text("Dirección") },
                                     modifier = Modifier.fillMaxWidth(),
-                                    enabled = true,
-                                    isError = false,
-                                    supportingText = { }
+                                    isError = fieldErrors["direccion"] != null,
+                                    supportingText = {
+                                        fieldErrors["direccion"]?.let {
+                                            Text(it, color = MaterialTheme.colorScheme.error)
+                                        }
+                                    }
                                 )
                                 if (userData is UserType.RestauranteUser) {
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    OutlinedTextField(
+                                    ProfileField(
+                                        label = "Tipo de Comida",
                                         value = tipoComida,
-                                        onValueChange = { tipoComida = it },
-                                        label = { Text("Tipo de Comida") },
+                                        enabled = false
+                                    )
+                                    LazyColumn(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .heightIn(max = 200.dp),
+                                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        items(userData.restaurante.combos) { combo ->
+                                            ProfileField(
+                                                label = "Combo ${combo.numero}",
+                                                value = "${combo.nombre} - ₡${combo.precio}",
+                                                enabled = false
+                                            )
+                                        }
+                                    }
+                                }
+                                if (userData !is UserType.RestauranteUser) {
+                                    OutlinedTextField(
+                                        value = telefono,
+                                        onValueChange = { telefono = it },
+                                        label = { Text("Teléfono") },
                                         modifier = Modifier.fillMaxWidth(),
-                                        enabled = true,
-                                        isError = false,
-                                        supportingText = { }
+                                        isError = fieldErrors["telefono"] != null,
+                                        supportingText = {
+                                            fieldErrors["telefono"]?.let {
+                                                Text(it, color = MaterialTheme.colorScheme.error)
+                                            }
+                                        },
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
+                                    )
+                                    OutlinedTextField(
+                                        value = correo,
+                                        onValueChange = { correo = it },
+                                        label = { Text("Correo") },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        isError = fieldErrors["correo"] != null,
+                                        supportingText = {
+                                            fieldErrors["correo"]?.let {
+                                                Text(it, color = MaterialTheme.colorScheme.error)
+                                            }
+                                        },
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
+                                    )
+                                    OutlinedTextField(
+                                        value = numeroTarjeta,
+                                        onValueChange = { numeroTarjeta = it },
+                                        label = { Text(if (userData is UserType.ClienteUser) "Número de Tarjeta" else "Número de Tarjeta (opcional)") },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        isError = fieldErrors["numeroTarjeta"] != null,
+                                        supportingText = {
+                                            fieldErrors["numeroTarjeta"]?.let {
+                                                Text(it, color = MaterialTheme.colorScheme.error)
+                                            }
+                                        },
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                                     )
                                 }
-                                Spacer(modifier = Modifier.height(8.dp))
-                                OutlinedTextField(
-                                    value = telefono,
-                                    onValueChange = { telefono = it },
-                                    label = { Text("Teléfono") },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    enabled = true,
-                                    isError = false,
-                                    supportingText = { }
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                OutlinedTextField(
-                                    value = correo,
-                                    onValueChange = { correo = it },
-                                    label = { Text("Correo") },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    enabled = true,
-                                    isError = false,
-                                    supportingText = { }
-                                )
                                 if (userData is UserType.RepartidorUser) {
-                                    Spacer(modifier = Modifier.height(8.dp))
                                     OutlinedTextField(
-                                        value = distancia,
-                                        onValueChange = { distancia = it },
-                                        label = { Text("Distancia (km)") },
+                                        value = costoPorKmHabiles,
+                                        onValueChange = { costoPorKmHabiles = it },
+                                        label = { Text("Costo por km (Hábiles)") },
                                         modifier = Modifier.fillMaxWidth(),
-                                        enabled = true,
-                                        isError = false,
-                                        supportingText = { }
+                                        isError = fieldErrors["costoPorKmHabiles"] != null,
+                                        supportingText = {
+                                            fieldErrors["costoPorKmHabiles"]?.let {
+                                                Text(it, color = MaterialTheme.colorScheme.error)
+                                            }
+                                        },
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                                     )
-                                    Spacer(modifier = Modifier.height(8.dp))
                                     OutlinedTextField(
-                                        value = costoPorKm,
-                                        onValueChange = { costoPorKm = it },
-                                        label = { Text("Costo por km") },
+                                        value = costoPorKmFeriados,
+                                        onValueChange = { costoPorKmFeriados = it },
+                                        label = { Text("Costo por km (Feriados)") },
                                         modifier = Modifier.fillMaxWidth(),
-                                        enabled = true,
-                                        isError = false,
-                                        supportingText = { }
+                                        isError = fieldErrors["costoPorKmFeriados"] != null,
+                                        supportingText = {
+                                            fieldErrors["costoPorKmFeriados"]?.let {
+                                                Text(it, color = MaterialTheme.colorScheme.error)
+                                            }
+                                        },
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                                    )
+                                    ProfileField(
+                                        label = "Kilómetros recorridos diarios",
+                                        value = userData.repartidor.kmRecorridosDiarios.toString(),
+                                        enabled = false
                                     )
                                 }
-                                Spacer(modifier = Modifier.height(16.dp))
                                 TextButton(onClick = { showPasswordChange = !showPasswordChange }) {
                                     Text(if (showPasswordChange) "Ocultar cambio de contraseña" else "Cambiar contraseña")
                                 }
                                 if (showPasswordChange) {
-                                    Spacer(modifier = Modifier.height(8.dp))
                                     OutlinedTextField(
                                         value = currentPassword,
                                         onValueChange = { currentPassword = it },
                                         label = { Text("Contraseña actual") },
                                         modifier = Modifier.fillMaxWidth(),
-                                        visualTransformation = PasswordVisualTransformation()
+                                        visualTransformation = PasswordVisualTransformation(),
+                                        isError = fieldErrors["currentPassword"] != null,
+                                        supportingText = {
+                                            fieldErrors["currentPassword"]?.let {
+                                                Text(it, color = MaterialTheme.colorScheme.error)
+                                            }
+                                        }
                                     )
-                                    Spacer(modifier = Modifier.height(8.dp))
                                     OutlinedTextField(
                                         value = newPassword,
                                         onValueChange = { newPassword = it },
                                         label = { Text("Nueva contraseña") },
                                         modifier = Modifier.fillMaxWidth(),
-                                        visualTransformation = PasswordVisualTransformation()
+                                        visualTransformation = PasswordVisualTransformation(),
+                                        isError = fieldErrors["newPassword"] != null,
+                                        supportingText = {
+                                            fieldErrors["newPassword"]?.let {
+                                                Text(it, color = MaterialTheme.colorScheme.error)
+                                            }
+                                        }
                                     )
-                                    Spacer(modifier = Modifier.height(8.dp))
                                     OutlinedTextField(
                                         value = confirmPassword,
                                         onValueChange = { confirmPassword = it },
                                         label = { Text("Confirmar contraseña") },
                                         modifier = Modifier.fillMaxWidth(),
-                                        visualTransformation = PasswordVisualTransformation()
+                                        visualTransformation = PasswordVisualTransformation(),
+                                        isError = fieldErrors["confirmPassword"] != null,
+                                        supportingText = {
+                                            fieldErrors["confirmPassword"]?.let {
+                                                Text(it, color = MaterialTheme.colorScheme.error)
+                                            }
+                                        }
                                     )
                                 }
-                                Spacer(modifier = Modifier.height(16.dp))
                                 Button(
                                     onClick = {
                                         perfilViewModel.updateProfile(
-                                            cedula = cedulaState,
                                             nombre = nombre,
                                             direccion = direccion,
                                             telefono = telefono,
                                             correo = correo,
-                                            distancia = distancia.toDoubleOrNull(),
-                                            costoPorKm = costoPorKm.toDoubleOrNull(),
+                                            numeroTarjeta = numeroTarjeta.takeIf { it.isNotBlank() },
+                                            costoPorKmHabiles = costoPorKmHabiles.toDoubleOrNull(),
+                                            costoPorKmFeriados = costoPorKmFeriados.toDoubleOrNull(),
                                             currentPassword = currentPassword,
                                             newPassword = newPassword,
-                                            confirmPassword = confirmPassword
+                                            confirmPassword = confirmPassword,
+                                            userType = userData
                                         ) {
                                             isEditing = false
                                             showPasswordChange = false
-                                            loginViewModel.loadUserData() // Reload user data
+                                            loginViewModel.loadUserData()
                                         }
                                     },
                                     modifier = Modifier.fillMaxWidth()
                                 ) { Text("Guardar") }
-                                Spacer(modifier = Modifier.height(8.dp))
                                 TextButton(onClick = {
                                     isEditing = false
                                     showPasswordChange = false
@@ -317,7 +395,9 @@ fun PerfilScreen(
                                 }
                             }
                         } else {
-                            Column {
+                            Column(
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
                                 ProfileField(label = "Cédula", value = cedulaState, enabled = false)
                                 ProfileField(
                                     label = "Nombre",
@@ -338,27 +418,53 @@ fun PerfilScreen(
                                         label = "Tipo de Comida",
                                         value = userData.restaurante.tipoComida
                                     )
+                                    LazyColumn(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .heightIn(max = 200.dp),
+                                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        items(userData.restaurante.combos) { combo ->
+                                            ProfileField(
+                                                label = "Combo ${combo.numero}",
+                                                value = "${combo.nombre} - ₡${combo.precio}",
+                                                enabled = false
+                                            )
+                                        }
+                                    }
                                 }
-                                ProfileField(
-                                    label = "Teléfono",
-                                    value = (userData as? UserType.ClienteUser)?.cliente?.telefono
-                                        ?: (userData as? UserType.RepartidorUser)?.repartidor?.telefono
-                                        ?: ""
-                                )
-                                ProfileField(
-                                    label = "Correo",
-                                    value = (userData as? UserType.ClienteUser)?.cliente?.correo
-                                        ?: (userData as? UserType.RepartidorUser)?.repartidor?.correo
-                                        ?: ""
-                                )
-                                if (userData is UserType.RepartidorUser) {
+                                if (userData !is UserType.RestauranteUser) {
                                     ProfileField(
-                                        label = "Distancia (km)",
-                                        value = userData.repartidor.distancia.toString()
+                                        label = "Teléfono",
+                                        value = (userData as? UserType.ClienteUser)?.cliente?.telefono
+                                            ?: (userData as? UserType.RepartidorUser)?.repartidor?.telefono
+                                            ?: ""
                                     )
                                     ProfileField(
-                                        label = "Costo por km",
-                                        value = userData.repartidor.costoPorKm.toString()
+                                        label = "Correo",
+                                        value = (userData as? UserType.ClienteUser)?.cliente?.correo
+                                            ?: (userData as? UserType.RepartidorUser)?.repartidor?.correo
+                                            ?: ""
+                                    )
+                                    ProfileField(
+                                        label = "Número de Tarjeta",
+                                        value = (userData as? UserType.ClienteUser)?.cliente?.numeroTarjeta
+                                            ?: (userData as? UserType.RepartidorUser)?.repartidor?.numeroTarjeta
+                                            ?: "No proporcionado"
+                                    )
+                                }
+                                if (userData is UserType.RepartidorUser) {
+                                    ProfileField(
+                                        label = "Costo por km (Hábiles)",
+                                        value = userData.repartidor.costoPorKmHabiles.toString()
+                                    )
+                                    ProfileField(
+                                        label = "Costo por km (Feriados)",
+                                        value = userData.repartidor.costoPorKmFeriados.toString()
+                                    )
+                                    ProfileField(
+                                        label = "Kilómetros recorridos diarios",
+                                        value = userData.repartidor.kmRecorridosDiarios.toString()
                                     )
                                     ProfileField(
                                         label = "Estado",
@@ -373,7 +479,6 @@ fun PerfilScreen(
                                         value = userData.repartidor.quejas.joinToString(", ")
                                     )
                                 }
-                                Spacer(modifier = Modifier.height(16.dp))
                                 Button(
                                     onClick = { isEditing = true },
                                     modifier = Modifier.fillMaxWidth()
@@ -382,6 +487,13 @@ fun PerfilScreen(
                         }
                     }
                 }
+            }
+            errorMessage.takeIf { it.isNotBlank() }?.let {
+                Text(
+                    text = it,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyMedium
+                )
             }
         }
     }
@@ -403,7 +515,7 @@ fun ProfileField(label: String, value: String, enabled: Boolean = true) {
         Text(
             text = value.ifEmpty { "No disponible" },
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface
+            color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }

@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.DeliveryDining
 import androidx.compose.material.icons.filled.Menu
@@ -32,6 +33,9 @@ import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberDrawerState
+import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
+import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
+import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -40,8 +44,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -68,35 +70,80 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
 fun MainNavDrawer() {
     val navController = rememberNavController()
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     val loginViewModel: LoginViewModel = hiltViewModel()
-    val cedula by loginViewModel.cedulaFlow.collectAsStateWithLifecycle(initialValue = "")
-    val userType by loginViewModel.userType.collectAsStateWithLifecycle(initialValue = null)
-    val navigationEvent by loginViewModel.navigationEvent.collectAsStateWithLifecycle(initialValue = null)
-    val windowInfo = LocalWindowInfo.current
+    val userId by loginViewModel.userId.collectAsStateWithLifecycle()
+    val userType by loginViewModel.userType.collectAsStateWithLifecycle()
+    val navigationEvent by loginViewModel.navigationEvent.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    val drawerWidth = with(LocalDensity.current) {
-        minOf(windowInfo.containerSize.width.toDp() * 0.5f, 320.dp)
+    val windowSizeClass = calculateWindowSizeClass(context as ComponentActivity)
+    val drawerWidth =
+        if (windowSizeClass.widthSizeClass == WindowWidthSizeClass.Expanded) 320.dp else 280.dp
+
+    // Ensure drawer is closed on startup or when userType is null
+    LaunchedEffect(userType) {
+        if (userType == null) {
+            scope.launch { drawerState.close() }
+        }
     }
 
     // Handle back press
-    BackHandler(enabled = true) {
-        val currentDestination = navController.currentBackStackEntry?.destination?.route
-        if (currentDestination == "login") {
-            (context as? ComponentActivity)?.finish()
+    BackHandler(enabled = drawerState.isOpen || navController.previousBackStackEntry != null) {
+        if (drawerState.isOpen) {
+            scope.launch { drawerState.close() }
         } else {
-            navController.popBackStack()
+            val currentDestination = navController.currentBackStackEntry?.destination?.route
+            if (currentDestination == "login") {
+                context.finish()
+            } else {
+                navController.popBackStack()
+            }
         }
     }
 
     // Handle navigation events
     LaunchedEffect(navigationEvent) {
         when (navigationEvent) {
+            is NavigationEvent.NavigateToClienteHome -> {
+                val id = (navigationEvent as NavigationEvent.NavigateToClienteHome).id
+                navController.navigate("restaurants/$id") {
+                    popUpTo(0) { inclusive = true }
+                    launchSingleTop = true
+                }
+                loginViewModel.clearNavigationEvent()
+            }
+
+            is NavigationEvent.NavigateToRepartidorHome -> {
+                val id = (navigationEvent as NavigationEvent.NavigateToRepartidorHome).id
+                navController.navigate("repartidor_orders/$id") {
+                    popUpTo(0) { inclusive = true }
+                    launchSingleTop = true
+                }
+                loginViewModel.clearNavigationEvent()
+            }
+
+            is NavigationEvent.NavigateToRestauranteOrders -> {
+                val id = (navigationEvent as NavigationEvent.NavigateToRestauranteOrders).id
+                navController.navigate("restaurante_orders/$id") {
+                    popUpTo(0) { inclusive = true }
+                    launchSingleTop = true
+                }
+                loginViewModel.clearNavigationEvent()
+            }
+
+            is NavigationEvent.NavigateToAdminHome -> {
+                navController.navigate("reports") {
+                    popUpTo(0) { inclusive = true }
+                    launchSingleTop = true
+                }
+                loginViewModel.clearNavigationEvent()
+            }
+
             is NavigationEvent.NavigateToLogin -> {
                 navController.navigate("login") {
                     popUpTo(0) { inclusive = true }
@@ -104,232 +151,232 @@ fun MainNavDrawer() {
                 }
                 loginViewModel.clearNavigationEvent()
             }
-            is NavigationEvent.NavigateToClientHome -> {
-                navController.navigate("restaurants/${(navigationEvent as NavigationEvent.NavigateToClientHome).cedula}") {
-                    popUpTo(0) { inclusive = true }
-                    launchSingleTop = true
-                }
-                loginViewModel.clearNavigationEvent()
-            }
-            is NavigationEvent.NavigateToRepartidorOrders -> {
-                navController.navigate("repartidor_orders/${(navigationEvent as NavigationEvent.NavigateToRepartidorOrders).cedula}") {
-                    popUpTo(0) { inclusive = true }
-                    launchSingleTop = true
-                }
-                loginViewModel.clearNavigationEvent()
-            }
-            is NavigationEvent.NavigateToAdminReports -> {
-                navController.navigate("reports") {
-                    popUpTo(0) { inclusive = true }
-                    launchSingleTop = true
-                }
-                loginViewModel.clearNavigationEvent()
-            }
+
             else -> Unit
         }
     }
 
-    ModalNavigationDrawer(
-        drawerState = drawerState,
-        drawerContent = {
-            // Role validation
-            LaunchedEffect(userType) {
-                if (userType == null) {
-                    navController.navigate("login") {
-                        popUpTo(0) { inclusive = true }
-                        launchSingleTop = true
-                    }
-                }
-            }
-            if (userType == null) return@ModalNavigationDrawer
-
-            Column(
-                modifier = Modifier
-                    .background(MaterialTheme.colorScheme.surface)
-                    .fillMaxHeight()
-                    .width(drawerWidth)
-            ) {
-                TopAppBar(
-                    title = {
-                        Text(
-                            text = "Menú",
-                            style = MaterialTheme.typography.titleLarge,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    },
-                    navigationIcon = {
-                        IconButton(
-                            onClick = { scope.launch { drawerState.close() } },
-                            modifier = Modifier.testTag("drawer_close_button")
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Menu,
-                                contentDescription = "Cerrar menú",
-                                tint = MaterialTheme.colorScheme.onSurface
+    // Render drawer only if user is logged in
+    if (userType != null) {
+        ModalNavigationDrawer(
+            drawerState = drawerState,
+            drawerContent = {
+                Column(
+                    modifier = Modifier
+                        .background(MaterialTheme.colorScheme.surface)
+                        .fillMaxHeight()
+                        .width(drawerWidth)
+                ) {
+                    TopAppBar(
+                        title = {
+                            Text(
+                                text = when (userType) {
+                                    is UserType.ClienteUser -> (userType as UserType.ClienteUser).cliente.nombre
+                                    is UserType.RepartidorUser -> (userType as UserType.RepartidorUser).repartidor.nombre
+                                    is UserType.RestauranteUser -> (userType as UserType.RestauranteUser).restaurante.nombre
+                                    is UserType.AdminUser -> "Admin"
+                                    else -> "Menú"
+                                },
+                                style = MaterialTheme.typography.titleLarge,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        },
+                        navigationIcon = {
+                            IconButton(
+                                onClick = { scope.launch { drawerState.close() } },
+                                modifier = Modifier.testTag("drawer_close_button")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Menu,
+                                    contentDescription = "Cerrar menú",
+                                    tint = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+                    )
+                    when (userType) {
+                        is UserType.ClienteUser -> {
+                            DrawerItem(
+                                text = "Restaurantes",
+                                icon = Icons.Default.Restaurant,
+                                contentDescription = "Lista de restaurantes",
+                                tag = "drawer_restaurants",
+                                onClick = {
+                                    scope.launch {
+                                        drawerState.close()
+                                        if (userId.isBlank()) {
+                                            navController.navigate("login")
+                                        } else {
+                                            navController.navigate("restaurants/$userId")
+                                        }
+                                    }
+                                }
+                            )
+                            DrawerItem(
+                                text = "Pedidos",
+                                icon = Icons.Default.ShoppingCart,
+                                contentDescription = "Lista de pedidos",
+                                tag = "drawer_orders",
+                                onClick = {
+                                    scope.launch {
+                                        drawerState.close()
+                                        navController.navigate("orders")
+                                    }
+                                }
+                            )
+                            DrawerItem(
+                                text = "Perfil",
+                                icon = Icons.Default.Person,
+                                contentDescription = "Perfil de usuario",
+                                tag = "drawer_profile",
+                                onClick = {
+                                    scope.launch {
+                                        drawerState.close()
+                                        navController.navigate("profile")
+                                    }
+                                }
                             )
                         }
-                    }
-                )
-                when (userType) {
-                    is UserType.ClienteUser -> {
-                        DrawerItem(
-                            text = "Perfil",
-                            icon = Icons.Default.Person,
-                            contentDescription = "Perfil de usuario",
-                            tag = "drawer_profile",
-                            onClick = {
-                                scope.launch {
-                                    drawerState.close()
-                                    navController.navigate("profile")
-                                }
-                            }
-                        )
-                        DrawerItem(
-                            text = "Restaurantes",
-                            icon = Icons.Default.Restaurant,
-                            contentDescription = "Lista de restaurantes",
-                            tag = "drawer_restaurants",
-                            onClick = {
-                                scope.launch {
-                                    drawerState.close()
-                                    if (cedula.isBlank()) {
-                                        navController.navigate("login")
-                                    } else {
-                                        navController.navigate("restaurants/$cedula")
+
+                        is UserType.RepartidorUser -> {
+                            DrawerItem(
+                                text = "Mis Pedidos",
+                                icon = Icons.Default.DeliveryDining,
+                                contentDescription = "Pedidos asignados",
+                                tag = "drawer_repartidor_orders",
+                                onClick = {
+                                    scope.launch {
+                                        drawerState.close()
+                                        if (userId.isBlank()) {
+                                            navController.navigate("login")
+                                        } else {
+                                            navController.navigate("repartidor_orders/$userId")
+                                        }
                                     }
                                 }
-                            }
-                        )
-                        DrawerItem(
-                            text = "Pedidos",
-                            icon = Icons.Default.ShoppingCart,
-                            contentDescription = "Lista de pedidos",
-                            tag = "drawer_orders",
-                            onClick = {
-                                scope.launch {
-                                    drawerState.close()
-                                    navController.navigate("orders")
-                                }
-                            }
-                        )
-                    }
-                    is UserType.RepartidorUser -> {
-                        DrawerItem(
-                            text = "Perfil",
-                            icon = Icons.Default.Person,
-                            contentDescription = "Perfil de usuario",
-                            tag = "drawer_profile",
-                            onClick = {
-                                scope.launch {
-                                    drawerState.close()
-                                    navController.navigate("profile")
-                                }
-                            }
-                        )
-                        DrawerItem(
-                            text = "Mis Pedidos",
-                            icon = Icons.Default.DeliveryDining,
-                            contentDescription = "Pedidos asignados",
-                            tag = "drawer_repartidor_orders",
-                            onClick = {
-                                scope.launch {
-                                    drawerState.close()
-                                    if (cedula.isBlank()) {
-                                        navController.navigate("login")
-                                    } else {
-                                        navController.navigate("repartidor_orders/$cedula")
+                            )
+                            DrawerItem(
+                                text = "Quejas",
+                                icon = Icons.Default.Warning,
+                                contentDescription = "Quejas de repartidores",
+                                tag = "drawer_repartidor_quejas",
+                                onClick = {
+                                    scope.launch {
+                                        drawerState.close()
+                                        navController.navigate("repartidor_quejas")
                                     }
                                 }
-                            }
-                        )
-                        DrawerItem(
-                            text = "Quejas",
-                            icon = Icons.Default.Warning,
-                            contentDescription = "Quejas de repartidores",
-                            tag = "drawer_repartidor_quejas",
-                            onClick = {
-                                scope.launch {
-                                    drawerState.close()
-                                    navController.navigate("repartidor_quejas")
-                                }
-                            }
-                        )
-                    }
-                    is UserType.AdminUser -> {
-                        DrawerItem(
-                            text = "Reportes",
-                            icon = Icons.Default.BarChart,
-                            contentDescription = "Reportes administrativos",
-                            tag = "drawer_reports",
-                            onClick = {
-                                scope.launch {
-                                    drawerState.close()
-                                    navController.navigate("reports")
-                                }
-                            }
-                        )
-                        DrawerItem(
-                            text = "Quejas",
-                            icon = Icons.Default.Warning,
-                            contentDescription = "Gestión de quejas",
-                            tag = "drawer_quejas",
-                            onClick = {
-                                scope.launch {
-                                    drawerState.close()
-                                    navController.navigate("reports")
-                                }
-                            }
-                        )
-                        DrawerItem(
-                            text = "Registrar Restaurante",
-                            icon = Icons.Default.Restaurant,
-                            contentDescription = "Registrar nuevo restaurante",
-                            tag = "drawer_register_restaurant",
-                            onClick = {
-                                scope.launch {
-                                    drawerState.close()
-                                    navController.navigate("register_restaurant")
-                                }
-                            }
-                        )
-                    }
-                    is UserType.RestauranteUser -> {
-                        DrawerItem(
-                            text = "Perfil",
-                            icon = Icons.Default.Person,
-                            contentDescription = "Perfil del restaurante",
-                            tag = "drawer_restaurante_profile",
-                            onClick = {
-                                scope.launch {
-                                    drawerState.close()
-                                    navController.navigate("profile")
-                                }
-                            }
-                        )
-                        DrawerItem(
-                            text = "Mis Pedidos",
-                            icon = Icons.Default.ShoppingCart,
-                            contentDescription = "Pedidos del restaurante",
-                            tag = "drawer_restaurante_orders",
-                            onClick = {
-                                scope.launch {
-                                    drawerState.close()
-                                    val restaurante = loginViewModel.repository.getRestaurantes()
-                                        .find { it.cedulaJuridica == cedula }
-                                    if (restaurante != null && cedula.isNotBlank()) {
-                                        navController.navigate("restaurante_orders/${restaurante.id}")
-                                    } else {
-                                        navController.navigate("login")
+                            )
+                            DrawerItem(
+                                text = "Perfil",
+                                icon = Icons.Default.Person,
+                                contentDescription = "Perfil de usuario",
+                                tag = "drawer_profile",
+                                onClick = {
+                                    scope.launch {
+                                        drawerState.close()
+                                        navController.navigate("profile")
                                     }
                                 }
-                            }
-                        )
+                            )
+                        }
+
+                        is UserType.AdminUser -> {
+                            DrawerItem(
+                                text = "Reportes",
+                                icon = Icons.Default.BarChart,
+                                contentDescription = "Reportes administrativos",
+                                tag = "drawer_reports",
+                                onClick = {
+                                    scope.launch {
+                                        drawerState.close()
+                                        navController.navigate("reports")
+                                    }
+                                }
+                            )
+                            DrawerItem(
+                                text = "Quejas",
+                                icon = Icons.Default.Warning,
+                                contentDescription = "Gestión de quejas",
+                                tag = "drawer_quejas",
+                                onClick = {
+                                    scope.launch {
+                                        drawerState.close()
+                                        navController.navigate("reports")
+                                    }
+                                }
+                            )
+                            DrawerItem(
+                                text = "Registrar Restaurante",
+                                icon = Icons.Default.Restaurant,
+                                contentDescription = "Registrar nuevo restaurante",
+                                tag = "drawer_register_restaurant",
+                                onClick = {
+                                    scope.launch {
+                                        drawerState.close()
+                                        navController.navigate("register_restaurant")
+                                    }
+                                }
+                            )
+                        }
+
+                        is UserType.RestauranteUser -> {
+                            DrawerItem(
+                                text = "Mis Pedidos",
+                                icon = Icons.Default.ShoppingCart,
+                                contentDescription = "Pedidos del restaurante",
+                                tag = "drawer_restaurante_orders",
+                                onClick = {
+                                    scope.launch {
+                                        drawerState.close()
+                                        if (userId.isBlank()) {
+                                            navController.navigate("login")
+                                        } else {
+                                            navController.navigate("restaurante_orders/$userId")
+                                        }
+                                    }
+                                }
+                            )
+                            DrawerItem(
+                                text = "Perfil",
+                                icon = Icons.Default.Person,
+                                contentDescription = "Perfil del restaurante",
+                                tag = "drawer_restaurante_profile",
+                                onClick = {
+                                    scope.launch {
+                                        drawerState.close()
+                                        navController.navigate("profile")
+                                    }
+                                }
+                            )
+                        }
+
+                        else -> Unit
                     }
-                    else -> Unit
+                    Spacer(modifier = Modifier.weight(1f))
+                    DrawerItem(
+                        text = "Cerrar Sesión",
+                        icon = Icons.AutoMirrored.Filled.ExitToApp,
+                        contentDescription = "Cerrar sesión",
+                        tag = "drawer_logout",
+                        onClick = {
+                            scope.launch {
+                                drawerState.close()
+                                loginViewModel.logout()
+                            }
+                        }
+                    )
                 }
             }
+        ) {
+            NavGraph(
+                navController = navController,
+                drawerState = drawerState,
+                scope = scope,
+                loginViewModel = loginViewModel
+            )
         }
-    ) {
+    } else {
         NavGraph(
             navController = navController,
             drawerState = drawerState,

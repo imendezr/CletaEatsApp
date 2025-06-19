@@ -88,7 +88,7 @@ fun RestauranteDetallesScreen(
             AnimatedVisibility(visible = selectedCombos.isNotEmpty()) {
                 FloatingActionButton(
                     onClick = {
-                        viewModel.createOrder(clienteId, restaurante.id) {
+                        viewModel.createOrder(clienteId, restaurante.id, 5.0) { // Default distance
                             onOrderCreated()
                             navController.navigate("orders")
                         }
@@ -134,7 +134,7 @@ fun RestauranteDetallesScreen(
                     LazyColumn(
                         contentPadding = PaddingValues(bottom = 16.dp)
                     ) {
-                        items((1..9).toList()) { combo ->
+                        items(restaurante.combos, key = { it.numero }) { combo ->
                             AnimatedVisibility(
                                 visible = true,
                                 enter = fadeIn() + slideInVertically(),
@@ -153,16 +153,19 @@ fun RestauranteDetallesScreen(
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Checkbox(
-                                            checked = selectedCombos.contains(combo),
+                                            checked = selectedCombos.any { it.numero == combo.numero },
                                             onCheckedChange = { checked ->
-                                                if (checked) viewModel.addCombo(combo)
-                                                else viewModel.removeCombo(combo)
+                                                if (checked) viewModel.addCombo(
+                                                    restaurante.id,
+                                                    combo.numero
+                                                )
+                                                else viewModel.removeCombo(combo.numero)
                                             }
                                         )
                                         Spacer(modifier = Modifier.width(8.dp))
                                         Text(
-                                            text = "Combo $combo - ₡${
-                                                (combo * 1000.0 + 3000.0).format(
+                                            text = "Combo ${combo.numero}: ${combo.nombre} - ₡${
+                                                combo.precio.format(
                                                     2
                                                 )
                                             }",
@@ -180,11 +183,23 @@ fun RestauranteDetallesScreen(
                                 .padding(16.dp),
                             shape = MaterialTheme.shapes.medium
                         ) {
-                            Text(
-                                text = "Combos seleccionados: ${selectedCombos.joinToString()}",
-                                style = MaterialTheme.typography.bodyLarge,
-                                modifier = Modifier.padding(16.dp)
-                            )
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text(
+                                    text = "Combos seleccionados:",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                selectedCombos.forEach { combo ->
+                                    Text(
+                                        text = "Combo ${combo.numero}: ${combo.nombre} - ₡${
+                                            combo.precio.format(
+                                                2
+                                            )
+                                        }",
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                }
+                            }
                         }
                     }
                 }

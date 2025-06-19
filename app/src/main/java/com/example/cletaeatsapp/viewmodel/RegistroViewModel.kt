@@ -43,11 +43,14 @@ class RegistroViewModel @Inject constructor(
     private val _contrasena = MutableStateFlow("")
     val contrasena = _contrasena.asStateFlow()
 
-    private val _distancia = MutableStateFlow("")
-    val distancia = _distancia.asStateFlow()
+    private val _numeroTarjeta = MutableStateFlow("")
+    val numeroTarjeta = _numeroTarjeta.asStateFlow()
 
-    private val _costoPorKm = MutableStateFlow("")
-    val costoPorKm = _costoPorKm.asStateFlow()
+    private val _costoPorKmHabiles = MutableStateFlow("")
+    val costoPorKmHabiles = _costoPorKmHabiles.asStateFlow()
+
+    private val _costoPorKmFeriados = MutableStateFlow("")
+    val costoPorKmFeriados = _costoPorKmFeriados.asStateFlow()
 
     private val _tipoUsuario = MutableStateFlow("Cliente")
     val tipoUsuario = _tipoUsuario.asStateFlow()
@@ -91,13 +94,18 @@ class RegistroViewModel @Inject constructor(
         validateFields()
     }
 
-    fun updateDistancia(newDistancia: String) {
-        _distancia.value = newDistancia
+    fun updateNumeroTarjeta(newNumeroTarjeta: String) {
+        _numeroTarjeta.value = newNumeroTarjeta
         validateFields()
     }
 
-    fun updateCostoPorKm(newCostoPorKm: String) {
-        _costoPorKm.value = newCostoPorKm
+    fun updateCostoPorKmHabiles(newCosto: String) {
+        _costoPorKmHabiles.value = newCosto
+        validateFields()
+    }
+
+    fun updateCostoPorKmFeriados(newCosto: String) {
+        _costoPorKmFeriados.value = newCosto
         validateFields()
     }
 
@@ -127,15 +135,20 @@ class RegistroViewModel @Inject constructor(
                                 telefono = _telefono.value,
                                 correo = _correo.value,
                                 estado = "disponible",
-                                distancia = _distancia.value.toDoubleOrNull() ?: 0.0,
-                                costoPorKm = _costoPorKm.value.toDoubleOrNull() ?: 1000.0,
+                                kmRecorridosDiarios = 0.0,
+                                costoPorKmHabiles = _costoPorKmHabiles.value.toDoubleOrNull()
+                                    ?: 1000.0,
+                                costoPorKmFeriados = _costoPorKmFeriados.value.toDoubleOrNull()
+                                    ?: 1500.0,
                                 amonestaciones = 0,
                                 quejas = emptyList(),
-                                contrasena = _contrasena.value
+                                contrasena = _contrasena.value,
+                                numeroTarjeta = _numeroTarjeta.value.takeIf { it.isNotBlank() }
                             )
                             if (repository.registerRepartidor(repartidor)) {
                                 val userType = UserType.RepartidorUser(repartidor)
                                 saveCedula(_cedula.value)
+                                saveUserId(repartidor.id)
                                 _errorMessage.value = ""
                                 _fieldErrors.value = emptyMap()
                                 onSuccess(_cedula.value, userType)
@@ -154,11 +167,13 @@ class RegistroViewModel @Inject constructor(
                                 telefono = _telefono.value,
                                 correo = _correo.value,
                                 estado = "activo",
-                                contrasena = _contrasena.value
+                                contrasena = _contrasena.value,
+                                numeroTarjeta = _numeroTarjeta.value
                             )
                             if (repository.registerCliente(cliente)) {
                                 val userType = UserType.ClienteUser(cliente)
                                 saveCedula(_cedula.value)
+                                saveUserId(cliente.id)
                                 _errorMessage.value = ""
                                 _fieldErrors.value = emptyMap()
                                 onSuccess(_cedula.value, userType)
@@ -182,7 +197,7 @@ class RegistroViewModel @Inject constructor(
     private fun validateFields(): String? {
         val errors = mutableMapOf<String, String>()
         if (_cedula.value.isBlank()) errors["cedula"] = "Cédula es obligatoria."
-        else if (_cedula.value != "admin" && !isCedulaValid(_cedula.value)) errors["cedula"] =
+        else if (!isCedulaValid(_cedula.value)) errors["cedula"] =
             "Cédula debe tener 9 dígitos numéricos."
         if (_nombre.value.isBlank()) errors["nombre"] = "Nombre es obligatorio."
         else if (!isNameValid(_nombre.value)) errors["nombre"] =
@@ -196,16 +211,25 @@ class RegistroViewModel @Inject constructor(
         if (_correo.value.isBlank()) errors["correo"] = "Correo es obligatorio."
         else if (!isEmailValid(_correo.value)) errors["correo"] = "Formato de correo inválido."
         if (_tipoUsuario.value == "Repartidor") {
-            if (_distancia.value.isBlank()) errors["distancia"] = "Distancia es obligatoria."
-            else if (_distancia.value.toDoubleOrNull() == null || _distancia.value.toDouble() <= 0) errors["distancia"] =
-                "Distancia debe ser un número positivo."
-            if (_costoPorKm.value.isBlank()) errors["costoPorKm"] = "Costo por km es obligatorio."
-            else if (_costoPorKm.value.toDoubleOrNull() == null || _costoPorKm.value.toDouble() <= 0) errors["costoPorKm"] =
-                "Costo por km debe ser un número positivo."
+            if (_costoPorKmHabiles.value.isBlank()) errors["costoPorKmHabiles"] =
+                "Costo por km hábiles es obligatorio."
+            else if (_costoPorKmHabiles.value.toDoubleOrNull() == null || _costoPorKmHabiles.value.toDouble() <= 0) {
+                errors["costoPorKmHabiles"] = "Costo por km hábiles debe ser un número positivo."
+            }
+            if (_costoPorKmFeriados.value.isBlank()) errors["costoPorKmFeriados"] =
+                "Costo por km feriados es obligatorio."
+            else if (_costoPorKmFeriados.value.toDoubleOrNull() == null || _costoPorKmFeriados.value.toDouble() <= 0) {
+                errors["costoPorKmFeriados"] = "Costo por km feriados debe ser un número positivo."
+            }
         }
         if (_contrasena.value.isBlank()) errors["contrasena"] = "Contraseña es obligatoria."
         else if (!isContrasenaValid(_contrasena.value)) errors["contrasena"] =
             "Contraseña debe tener al menos 8 caracteres."
+        if (_tipoUsuario.value == "Cliente" && _numeroTarjeta.value.isBlank()) {
+            errors["numeroTarjeta"] = "Número de tarjeta es obligatorio para clientes."
+        } else if (_numeroTarjeta.value.isNotBlank() && !isNumeroTarjetaValid(_numeroTarjeta.value)) {
+            errors["numeroTarjeta"] = "Número de tarjeta debe tener 16 dígitos numéricos."
+        }
         _fieldErrors.value = errors
         return errors.values.firstOrNull()
     }
@@ -218,7 +242,14 @@ class RegistroViewModel @Inject constructor(
         }
     }
 
-    // Reutiliza las validaciones existentes
+    private fun saveUserId(id: String) {
+        viewModelScope.launch {
+            dataStore.edit { preferences ->
+                preferences[stringPreferencesKey("user_id")] = id
+            }
+        }
+    }
+
     private fun isCedulaValid(cedula: String) = cedula.length == 9 && cedula.all { it.isDigit() }
     private fun isEmailValid(email: String) =
         email.isNotEmpty() && Patterns.EMAIL_ADDRESS.matcher(email).matches()
@@ -229,4 +260,6 @@ class RegistroViewModel @Inject constructor(
         name.length >= 2 && name.all { it.isLetter() || it.isWhitespace() }
 
     private fun isContrasenaValid(password: String) = password.length >= 8
+    private fun isNumeroTarjetaValid(numeroTarjeta: String) =
+        numeroTarjeta.length == 16 && numeroTarjeta.all { it.isDigit() }
 }

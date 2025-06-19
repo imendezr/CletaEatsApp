@@ -60,8 +60,8 @@ fun ClienteOrdenesScreen(
     navController: NavController
 ) {
     val userType by loginViewModel.userType.collectAsStateWithLifecycle()
-    // Role validation
-    if (userType !is UserType.ClienteUser) {
+    val clienteId = (userType as? UserType.ClienteUser)?.cliente?.id
+    if (userType !is UserType.ClienteUser || clienteId == null) {
         LaunchedEffect(Unit) {
             navController.navigate("login") {
                 popUpTo(0) { inclusive = true }
@@ -71,6 +71,7 @@ fun ClienteOrdenesScreen(
     }
 
     val pedidos by viewModel.pedidos.collectAsStateWithLifecycle()
+    val filteredPedidos = pedidos.filter { it.clienteId == clienteId }
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -114,7 +115,7 @@ fun ClienteOrdenesScreen(
                     contentPadding = PaddingValues(bottom = 16.dp),
                     state = rememberLazyListState()
                 ) {
-                    itemsIndexed(pedidos) { index, pedido ->
+                    itemsIndexed(filteredPedidos) { index, pedido ->
                         AnimatedVisibility(
                             visible = true,
                             enter = fadeIn() + slideInVertically(),
@@ -122,6 +123,8 @@ fun ClienteOrdenesScreen(
                         ) {
                             OrdenCard(
                                 pedido = pedido,
+                                isRepartidor = false,
+                                isRestaurant = false,
                                 onClick = { selectedPedido = pedido }
                             )
                         }
@@ -136,7 +139,11 @@ fun ClienteOrdenesScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     selectedPedido?.let { pedido ->
-                        OrdenCard(pedido = pedido)
+                        OrdenCard(
+                            pedido = pedido,
+                            isRepartidor = false,
+                            isRestaurant = false
+                        )
                     } ?: Text(
                         text = "Seleccione un pedido para ver detalles",
                         style = MaterialTheme.typography.bodyLarge
@@ -164,7 +171,7 @@ fun ClienteOrdenesScreen(
                         )
                     }
 
-                    pedidos.isEmpty() -> {
+                    filteredPedidos.isEmpty() -> {
                         Text(
                             text = "No hay pedidos disponibles",
                             style = MaterialTheme.typography.bodyLarge,
@@ -177,13 +184,17 @@ fun ClienteOrdenesScreen(
                             contentPadding = PaddingValues(bottom = 16.dp),
                             state = rememberLazyListState()
                         ) {
-                            itemsIndexed(pedidos) { index, pedido ->
+                            itemsIndexed(filteredPedidos) { index, pedido ->
                                 AnimatedVisibility(
                                     visible = true,
                                     enter = fadeIn() + slideInVertically(),
                                     exit = fadeOut() + slideOutVertically()
                                 ) {
-                                    OrdenCard(pedido = pedido)
+                                    OrdenCard(
+                                        pedido = pedido,
+                                        isRepartidor = false,
+                                        isRestaurant = false
+                                    )
                                 }
                             }
                         }

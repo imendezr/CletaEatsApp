@@ -1,9 +1,7 @@
 package com.example.cletaeatsapp.ui.navigation
 
-import android.util.Log
 import androidx.compose.material3.DrawerState
 import androidx.compose.runtime.Composable
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -14,7 +12,7 @@ import com.example.cletaeatsapp.ui.screens.ClienteOrdenesScreen
 import com.example.cletaeatsapp.ui.screens.FeedbackScreen
 import com.example.cletaeatsapp.ui.screens.LoginScreen
 import com.example.cletaeatsapp.ui.screens.PerfilScreen
-import com.example.cletaeatsapp.ui.screens.RegisterScreen
+import com.example.cletaeatsapp.ui.screens.RegistroScreen
 import com.example.cletaeatsapp.ui.screens.RepartidorOrdenesScreen
 import com.example.cletaeatsapp.ui.screens.RepartidorQuejasScreen
 import com.example.cletaeatsapp.ui.screens.ReportesScreen
@@ -22,11 +20,11 @@ import com.example.cletaeatsapp.ui.screens.RestauranteDetallesScreen
 import com.example.cletaeatsapp.ui.screens.RestauranteListadoScreen
 import com.example.cletaeatsapp.ui.screens.RestauranteOrdenesScreen
 import com.example.cletaeatsapp.ui.screens.RestauranteRegistroScreen
-import com.example.cletaeatsapp.viewmodel.ClienteOrdenViewModel
 import com.example.cletaeatsapp.viewmodel.LoginViewModel
 import com.google.gson.Gson
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import timber.log.Timber
 
 @Composable
 fun NavGraph(
@@ -39,67 +37,46 @@ fun NavGraph(
         composable("login") {
             LoginScreen(
                 navController = navController,
-                onLoginSuccess = { cedula: String, userType: UserType ->
-                    scope.launch {
-                        loginViewModel.saveCedula(cedula)
-                        when (userType) {
-                            is UserType.ClienteUser -> navController.navigate("restaurants/$cedula") {
-                                popUpTo("login") { inclusive = true }
-                                launchSingleTop = true
-                            }
-
-                            is UserType.RepartidorUser -> navController.navigate("repartidor_orders/$cedula") {
-                                popUpTo("login") { inclusive = true }
-                                launchSingleTop = true
-                            }
-
-                            is UserType.AdminUser -> navController.navigate("reports") {
-                                popUpTo("login") { inclusive = true }
-                                launchSingleTop = true
-                            }
-
-                            is UserType.RestauranteUser -> {
-                                // Obtener restauranteId desde la cédula jurídica
-                                val restaurante = loginViewModel.repository.getRestaurantes()
-                                    .find { it.cedulaJuridica == cedula }
-                                if (restaurante != null) {
-                                    navController.navigate("restaurante_orders/${restaurante.id}") {
-                                        popUpTo("login") { inclusive = true }
-                                        launchSingleTop = true
-                                    }
-                                } else {
-                                    navController.navigate("login") {
-                                        popUpTo("login") { inclusive = true }
-                                        launchSingleTop = true
-                                    }
-                                }
-                            }
-                        }
-                    }
-                },
                 loginViewModel = loginViewModel
             )
         }
         composable("register") {
-            RegisterScreen(
+            RegistroScreen(
                 navController = navController,
                 onRegisterSuccess = { cedula: String, userType: UserType ->
                     scope.launch {
                         loginViewModel.saveCedula(cedula)
                         when (userType) {
-                            is UserType.ClienteUser -> navController.navigate("restaurants/$cedula") {
-                                popUpTo("register") { inclusive = true }
-                                launchSingleTop = true
+                            is UserType.ClienteUser -> {
+                                loginViewModel.saveUserId(userType.cliente.id)
+                                navController.navigate("restaurants/${userType.cliente.id}") {
+                                    popUpTo("login") { inclusive = true }
+                                    launchSingleTop = true
+                                }
                             }
 
-                            is UserType.RepartidorUser -> navController.navigate("repartidor_orders/$cedula") {
-                                popUpTo("register") { inclusive = true }
-                                launchSingleTop = true
+                            is UserType.RepartidorUser -> {
+                                loginViewModel.saveUserId(userType.repartidor.id)
+                                navController.navigate("repartidor_orders/${userType.repartidor.id}") {
+                                    popUpTo("login") { inclusive = true }
+                                    launchSingleTop = true
+                                }
                             }
 
-                            else -> navController.navigate("login") {
-                                popUpTo("register") { inclusive = true }
-                                launchSingleTop = true
+                            is UserType.RestauranteUser -> {
+                                loginViewModel.saveUserId(userType.restaurante.id)
+                                navController.navigate("restaurante_orders/${userType.restaurante.id}") {
+                                    popUpTo("login") { inclusive = true }
+                                    launchSingleTop = true
+                                }
+                            }
+
+                            is UserType.AdminUser -> {
+                                loginViewModel.saveUserId(userType.admin.id)
+                                navController.navigate("reports") {
+                                    popUpTo("login") { inclusive = true }
+                                    launchSingleTop = true
+                                }
                             }
                         }
                     }
@@ -142,46 +119,6 @@ fun NavGraph(
                 clienteId = clienteId,
                 onOpenDrawer = { scope.launch { drawerState.open() } },
                 onOrderCreated = { navController.navigate("orders") },
-                loginViewModel = loginViewModel,
-                navController = navController
-            )
-        }
-        composable("profile") {
-            PerfilScreen(
-                onOpenDrawer = { scope.launch { drawerState.open() } },
-                loginViewModel = loginViewModel,
-                navController = navController
-            )
-        }
-        composable("orders") {
-            ClienteOrdenesScreen(
-                onOpenDrawer = { scope.launch { drawerState.open() } },
-                loginViewModel = loginViewModel,
-                navController = navController
-            )
-        }
-        composable("feedback/{pedidoId}") { backStackEntry ->
-            val pedidoId = backStackEntry.arguments?.getString("pedidoId") ?: ""
-            if (pedidoId.isBlank()) {
-                navController.navigate("orders")
-                return@composable
-            }
-            val clienteOrdenViewModel: ClienteOrdenViewModel = hiltViewModel()
-            val pedido: Pedido? = clienteOrdenViewModel.getPedidoById(pedidoId)
-            if (pedido == null) {
-                navController.navigate("orders")
-                return@composable
-            }
-            FeedbackScreen(
-                pedido = pedido,
-                onFeedbackSubmitted = { navController.navigate("orders") },
-                navController = navController,
-                loginViewModel = loginViewModel
-            )
-        }
-        composable("repartidor_quejas") {
-            RepartidorQuejasScreen(
-                onOpenDrawer = { scope.launch { drawerState.open() } },
                 loginViewModel = loginViewModel,
                 navController = navController
             )
@@ -231,6 +168,48 @@ fun NavGraph(
                 navController = navController
             )
         }
+        composable("orders") {
+            ClienteOrdenesScreen(
+                onOpenDrawer = { scope.launch { drawerState.open() } },
+                loginViewModel = loginViewModel,
+                navController = navController
+            )
+        }
+        composable("profile") {
+            PerfilScreen(
+                onOpenDrawer = { scope.launch { drawerState.open() } },
+                loginViewModel = loginViewModel,
+                navController = navController
+            )
+        }
+        composable("repartidor_quejas") {
+            RepartidorQuejasScreen(
+                onOpenDrawer = { scope.launch { drawerState.open() } },
+                loginViewModel = loginViewModel,
+                navController = navController
+            )
+        }
+        composable("feedback/{pedidoJson}") { backStackEntry ->
+            val pedidoJson = backStackEntry.arguments?.getString("pedidoJson") ?: ""
+            if (pedidoJson.isBlank()) {
+                navController.navigate("orders") {
+                    popUpTo("orders") { inclusive = true }
+                    launchSingleTop = true
+                }
+                return@composable
+            }
+            val pedido = parsePedido(pedidoJson)
+            if (pedido == null) {
+                navController.navigate("orders")
+                return@composable
+            }
+            FeedbackScreen(
+                pedido = pedido,
+                onFeedbackSubmitted = { navController.navigate("orders") },
+                loginViewModel = loginViewModel,
+                navController = navController
+            )
+        }
     }
 }
 
@@ -238,7 +217,16 @@ private fun parseRestaurante(json: String): Restaurante? {
     return try {
         Gson().fromJson(json, Restaurante::class.java)
     } catch (e: Exception) {
-        Log.e("NavGraph", "Failed to parse restaurante JSON: $json", e)
+        Timber.tag("NavGraph").e(e, "Failed to parse restaurante JSON: $json")
+        null
+    }
+}
+
+private fun parsePedido(json: String): Pedido? {
+    return try {
+        Gson().fromJson(json, Pedido::class.java)
+    } catch (e: Exception) {
+        Timber.tag("NavGraph").e(e, "Failed to parse pedido JSON: $json")
         null
     }
 }

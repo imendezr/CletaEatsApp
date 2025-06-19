@@ -90,13 +90,19 @@ fun FeedbackScreen(
                     .fillMaxSize()
                     .padding(innerPadding)
                     .padding(padding),
-                verticalArrangement = Arrangement.Center,
+                verticalArrangement = Arrangement.Top,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "Califique al repartidor",
+                    text = "Calificación para ${pedido.nombreRestaurante ?: "Restaurante"}",
                     style = MaterialTheme.typography.headlineMedium,
                     modifier = Modifier.semantics { heading() }
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Pedido: ${pedido.combos.joinToString { it.nombre }}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 AnimatedContent(
@@ -113,11 +119,32 @@ fun FeedbackScreen(
                         Spacer(modifier = Modifier.height(8.dp))
                         OutlinedTextField(
                             value = comentario,
-                            onValueChange = { viewModel.comentario.value = it },
+                            onValueChange = {
+                                if (it.length <= 500) viewModel.comentario.value = it
+                            },
                             label = { Text("Comentario o queja") },
                             modifier = Modifier.fillMaxWidth(),
                             enabled = !loading,
-                            isError = errorMessage != null && comentario.isBlank()
+                            isError = errorMessage != null,
+                            supportingText = {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    if (errorMessage != null) {
+                                        Text(
+                                            text = errorMessage!!,
+                                            color = MaterialTheme.colorScheme.error
+                                        )
+                                    }
+                                    Text(
+                                        text = "${comentario.length}/500",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = if (comentario.length > 500) MaterialTheme.colorScheme.error
+                                        else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
                         )
                     }
                 }
@@ -138,14 +165,6 @@ fun FeedbackScreen(
                     } else {
                         Text("Enviar")
                     }
-                }
-                errorMessage?.let {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = it,
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
                 }
             }
         }

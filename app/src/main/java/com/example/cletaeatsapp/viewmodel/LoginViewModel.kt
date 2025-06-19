@@ -23,7 +23,7 @@ class LoginViewModel @Inject constructor(
     private val dataStore: DataStore<Preferences>
 ) : ViewModel() {
     private val _cedula = MutableStateFlow("")
-    val cedula = _cedula.asStateFlow()
+    val cedulaFlow = _cedula.asStateFlow()
 
     private val _contrasena = MutableStateFlow("")
     val contrasena = _contrasena.asStateFlow()
@@ -37,41 +37,43 @@ class LoginViewModel @Inject constructor(
     private val _fieldErrors = MutableStateFlow<Map<String, String>>(emptyMap())
     val fieldErrors = _fieldErrors.asStateFlow()
 
-    private val _uiState = MutableStateFlow<LoginUiState>(LoginUiState.Login)
-
-    private val _cedulaFlow = MutableStateFlow("")
-    val cedulaFlow = _cedulaFlow.asStateFlow()
-
     private val _userType = MutableStateFlow<UserType?>(null)
     val userType = _userType.asStateFlow()
 
     private val _navigationEvent = MutableStateFlow<NavigationEvent?>(null)
     val navigationEvent = _navigationEvent.asStateFlow()
 
+    private val _userId = MutableStateFlow("")
+    val userId = _userId.asStateFlow()
+
     init {
-        viewModelScope.launch {
-            dataStore.data
-                .map { it[stringPreferencesKey("cedula")] ?: "" }
-                .collect { storedCedula ->
-                    _cedulaFlow.value = storedCedula
-                    _cedula.value = storedCedula
-                    if (storedCedula.isNotBlank()) loadUserData()
-                }
-        }
+        loadUserData()
     }
 
     fun updateCedula(newCedula: String) {
         _cedula.value = newCedula
-        _cedulaFlow.value = newCedula
-        validateFields()
+        viewModelScope.launch {
+            validateFields()
+        }
     }
 
     fun updateContrasena(newContrasena: String) {
         _contrasena.value = newContrasena
-        validateFields()
+        viewModelScope.launch {
+            validateFields()
+        }
     }
 
-    fun login(onSuccess: (String, UserType) -> Unit) {
+    fun saveUserId(id: String) {
+        _userId.value = id
+        viewModelScope.launch {
+            dataStore.edit { preferences ->
+                preferences[stringPreferencesKey("user_id")] = id
+            }
+        }
+    }
+
+    fun login(onLoginSuccess: (String, UserType) -> Unit) {
         viewModelScope.launch {
             _isLoading.value = true
             _errorMessage.value = ""
@@ -82,51 +84,70 @@ class LoginViewModel @Inject constructor(
             }
             try {
                 withTimeout(5000L) {
-                    val userType = repository.authenticateUser(_cedula.value, _contrasena.value)
-                    when (userType) {
+                    when (val user =
+                        repository.authenticateUser(_cedula.value, _contrasena.value)) {
                         is UserType.ClienteUser -> {
-                            if (userType.cliente.estado == "suspendido") {
-                                _errorMessage.value = "Su cuenta está suspendida."
-                            } else {
-                                _uiState.value = LoginUiState.Authenticated
-                                _userType.value = userType
-                                saveCedula(_cedula.value)
-                                _errorMessage.value = ""
-                                _fieldErrors.value = emptyMap()
-                                onSuccess(_cedula.value, userType)
+                            if (user.cliente.estado != "activo") {
+                                _errorMessage.value = "Usuario suspendido."
+                                _fieldErrors.value = mapOf("general" to "Usuario suspendido.")
+                                _isLoading.value = false
+                                return@withTimeout
                             }
+                            saveCedula(_cedula.value)
+                            saveUserId(user.cliente.id)
+                            _userType.value = user
+                            _errorMessage.value = ""
+                            _fieldErrors.value = emptyMap()
+                            onLoginSuccess(_cedula.value, user)
+                            _navigationEvent.value =
+                                NavigationEvent.NavigateToClienteHome(user.cliente.id)
                         }
+
                         is UserType.RepartidorUser -> {
-                            if (userType.repartidor.estado == "inactivo") {
-                                _errorMessage.value = "Su cuenta está inactiva."
-                            } else {
-                                _uiState.value = LoginUiState.Authenticated
-                                _userType.value = userType
-                                saveCedula(_cedula.value)
-                                _errorMessage.value = ""
-                                _fieldErrors.value = emptyMap()
-                                onSuccess(_cedula.value, userType)
+                            if (user.repartidor.amonestaciones >= 4 || user.repartidor.estado == "inactivo") {
+                                _errorMessage.value =
+                                    "Repartidor inactivo o con demasiadas amonestaciones."
+                                _fieldErrors.value =
+                                    mapOf("general" to "Repartidor inactivo o con demasiadas amonestaciones.")
+                                _isLoading.value = false
+                                return@withTimeout
                             }
+                            saveCedula(_cedula.value)
+                            saveUserId(user.repartidor.id)
+                            _userType.value = user
+                            _errorMessage.value = ""
+                            _fieldErrors.value = emptyMap()
+                            onLoginSuccess(_cedula.value, user)
+                            _navigationEvent.value =
+                                NavigationEvent.NavigateToRepartidorHome(user.repartidor.id)
                         }
+
                         is UserType.RestauranteUser -> {
-                            _uiState.value = LoginUiState.Authenticated
-                            _userType.value = userType
                             saveCedula(_cedula.value)
+                            saveUserId(user.restaurante.id)
+                            _userType.value = user
                             _errorMessage.value = ""
                             _fieldErrors.value = emptyMap()
-                            onSuccess(_cedula.value, userType)
+                            onLoginSuccess(_cedula.value, user)
+                            _navigationEvent.value =
+                                NavigationEvent.NavigateToRestauranteOrders(user.restaurante.id)
                         }
+
                         is UserType.AdminUser -> {
-                            _uiState.value = LoginUiState.Authenticated
-                            _userType.value = userType
                             saveCedula(_cedula.value)
+                            saveUserId(user.admin.id)
+                            _userType.value = user
                             _errorMessage.value = ""
                             _fieldErrors.value = emptyMap()
-                            onSuccess(_cedula.value, userType)
+                            onLoginSuccess(_cedula.value, user)
+                            _navigationEvent.value =
+                                NavigationEvent.NavigateToAdminHome(user.admin.id)
                         }
-                        null -> {
-                            _errorMessage.value = "Usuario no registrado o contraseña incorrecta."
-                            _fieldErrors.value = mapOf("contrasena" to "Credenciales inválidas.")
+
+                        else -> {
+                            _errorMessage.value = "Cédula o contraseña incorrectas."
+                            _fieldErrors.value =
+                                mapOf("general" to "Cédula o contraseña incorrectas.")
                         }
                     }
                 }
@@ -140,34 +161,37 @@ class LoginViewModel @Inject constructor(
         }
     }
 
-    private fun validateFields(): String? {
-        val errors = mutableMapOf<String, String>()
-        if (_cedula.value.isBlank()) errors["cedula"] = "Cédula o usuario es obligatorio."
-        else if (_cedula.value != "admin" && !isCedulaValid(_cedula.value)) errors["cedula"] =
-            if (_cedula.value.startsWith("3")) "Cédula jurídica debe tener al menos 10 dígitos numéricos."
-            else "Cédula debe tener 9 dígitos numéricos."
-        if (_contrasena.value.isBlank()) errors["contrasena"] = "Contraseña es obligatoria."
-        _fieldErrors.value = errors
-        return errors.values.firstOrNull()
-    }
-
     fun loadUserData() {
         viewModelScope.launch {
-            if (_uiState.value != LoginUiState.Authenticated) return@launch
-            try {
-                _isLoading.value = true
-                val userType = repository.authenticateUser(_cedula.value, _contrasena.value)
-                if (userType != null) {
-                    _userType.value = userType
-                } else {
-                    _errorMessage.value = "No se encontraron datos del usuario."
-                    _uiState.value = LoginUiState.Error
-                    triggerNavigationEvent(NavigationEvent.NavigateToLogin)
+            dataStore.data.map { preferences ->
+                preferences[stringPreferencesKey("cedula")] ?: ""
+            }.collect { savedCedula ->
+                if (savedCedula.isNotBlank()) {
+                    _cedula.value = savedCedula
+                    try {
+                        val user = repository.getUserByCedula(savedCedula)
+                        if (user is UserType.ClienteUser && user.cliente.estado != "activo") {
+                            _userType.value = null
+                            clearUserData()
+                        } else if (user is UserType.RepartidorUser && (user.repartidor.amonestaciones >= 4 || user.repartidor.estado == "inactivo")) {
+                            _userType.value = null
+                            clearUserData()
+                        } else {
+                            _userType.value = user
+                            when (user) {
+                                is UserType.ClienteUser -> saveUserId(user.cliente.id)
+                                is UserType.RepartidorUser -> saveUserId(user.repartidor.id)
+                                is UserType.RestauranteUser -> saveUserId(user.restaurante.id)
+                                is UserType.AdminUser -> saveUserId(user.admin.id)
+                                else -> _userId.value = ""
+                            }
+                        }
+                    } catch (e: Exception) {
+                        _userType.value = null
+                        clearUserData()
+                        _errorMessage.value = "Error al cargar datos: ${e.message}"
+                    }
                 }
-            } catch (e: Exception) {
-                _errorMessage.value = "Error al cargar datos: ${e.message}"
-            } finally {
-                _isLoading.value = false
             }
         }
     }
@@ -184,25 +208,15 @@ class LoginViewModel @Inject constructor(
         viewModelScope.launch {
             dataStore.edit { preferences ->
                 preferences.remove(stringPreferencesKey("cedula"))
+                preferences.remove(stringPreferencesKey("user_id"))
             }
             _cedula.value = ""
             _contrasena.value = ""
-            _errorMessage.value = ""
-            _isLoading.value = false
-            _fieldErrors.value = emptyMap()
-            _uiState.value = LoginUiState.Login
             _userType.value = null
-            triggerNavigationEvent(NavigationEvent.NavigateToLogin)
-        }
-    }
-
-    fun triggerNavigationEvent(event: NavigationEvent) {
-        _navigationEvent.value = when (event) {
-            is NavigationEvent.NavigateToLogin -> event
-            is NavigationEvent.NavigateToClientHome -> event
-            is NavigationEvent.NavigateToRepartidorOrders -> event
-            is NavigationEvent.NavigateToAdminReports -> event
-            is NavigationEvent.NavigateToRestauranteOrders -> event
+            _userId.value = ""
+            _errorMessage.value = ""
+            _fieldErrors.value = emptyMap()
+            _navigationEvent.value = NavigationEvent.NavigateToLogin
         }
     }
 
@@ -210,25 +224,64 @@ class LoginViewModel @Inject constructor(
         _navigationEvent.value = null
     }
 
-    private fun isCedulaValid(cedula: String): Boolean {
-        return when {
-            cedula == "admin" -> true // Excepción para el admin
-            cedula.startsWith("3") -> cedula.length >= 10 && cedula.all { it.isDigit() } // Cédula jurídica
-            else -> cedula.length == 9 && cedula.all { it.isDigit() } // Cédula personal
+    private fun clearUserData() {
+        viewModelScope.launch {
+            dataStore.edit { preferences ->
+                preferences.remove(stringPreferencesKey("cedula"))
+                preferences.remove(stringPreferencesKey("user_id"))
+            }
+            _cedula.value = ""
+            _userId.value = ""
         }
     }
+
+    private suspend fun validateFields(): String? {
+        val errors = mutableMapOf<String, String>()
+        if (_cedula.value.isBlank()) {
+            errors["cedula"] = "Cédula es obligatoria."
+        } else {
+            val user = repository.getUserByCedula(_cedula.value)
+            when (user) {
+                is UserType.RestauranteUser -> {
+                    if (!isCedulaJuridicaValid(_cedula.value)) {
+                        errors["cedula"] = "Cédula jurídica debe tener 10 dígitos numéricos."
+                    }
+                }
+
+                is UserType.AdminUser -> {
+                    if (!isNombreUsuarioValid(_cedula.value)) {
+                        errors["cedula"] = "Nombre de usuario debe tener al menos 8 caracteres."
+                    }
+                }
+
+                else -> {
+                    if (!isCedulaValid(_cedula.value)) {
+                        errors["cedula"] = "Cédula debe tener 9 dígitos numéricos."
+                    }
+                }
+            }
+        }
+        if (_contrasena.value.isBlank()) {
+            errors["contrasena"] = "Contraseña es obligatoria."
+        } else if (!isContrasenaValid(_contrasena.value)) {
+            errors["contrasena"] = "Contraseña debe tener al menos 8 caracteres."
+        }
+        _fieldErrors.value = errors
+        return errors.values.firstOrNull()
+    }
+
+    private fun isCedulaValid(cedula: String) = cedula.length == 9 && cedula.all { it.isDigit() }
+    private fun isCedulaJuridicaValid(cedula: String) =
+        cedula.length == 10 && cedula.all { it.isDigit() }
+
+    private fun isNombreUsuarioValid(nombreUsuario: String) = nombreUsuario.length >= 8
+    private fun isContrasenaValid(password: String) = password.length >= 8
 }
 
 sealed class NavigationEvent {
-    object NavigateToLogin : NavigationEvent()
-    data class NavigateToClientHome(val cedula: String) : NavigationEvent()
-    data class NavigateToRepartidorOrders(val cedula: String) : NavigationEvent()
-    object NavigateToAdminReports : NavigationEvent()
-    data class NavigateToRestauranteOrders(val cedula: String) : NavigationEvent()
-}
-
-sealed class LoginUiState {
-    object Login : LoginUiState()
-    object Authenticated : LoginUiState()
-    object Error : LoginUiState()
+    data class NavigateToClienteHome(val id: String) : NavigationEvent()
+    data class NavigateToRepartidorHome(val id: String) : NavigationEvent()
+    data class NavigateToRestauranteOrders(val id: String) : NavigationEvent()
+    data class NavigateToAdminHome(val id: String) : NavigationEvent()
+    data object NavigateToLogin : NavigationEvent()
 }

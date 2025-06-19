@@ -4,8 +4,10 @@ import android.content.Context
 import com.example.cletaeatsapp.data.model.Admin
 import com.example.cletaeatsapp.data.model.Cliente
 import com.example.cletaeatsapp.data.model.Pedido
+import com.example.cletaeatsapp.data.model.PedidoCombo
 import com.example.cletaeatsapp.data.model.Repartidor
 import com.example.cletaeatsapp.data.model.Restaurante
+import com.example.cletaeatsapp.data.model.RestauranteCombo
 import com.example.cletaeatsapp.data.model.UserType
 import com.google.gson.Gson
 import kotlinx.coroutines.CoroutineScope
@@ -14,6 +16,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import timber.log.Timber
 import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -26,19 +29,39 @@ class CletaEatsRepository(
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     init {
-        scope.launch { initializeData() }
+        scope.launch {
+            initializeData()
+            Timber.d("Data initialization completed")
+        }
     }
 
     private suspend fun initializeData() = withContext(Dispatchers.IO) {
         try {
-            if (!context.fileList().contains("clientes.txt")) initializeMockClientes()
-            if (!context.fileList().contains("restaurantes.txt")) initializeMockRestaurants()
-            if (!context.fileList().contains("pedidos.txt")) initializeMockPedidos()
-            if (!context.fileList().contains("repartidores.txt")) initializeMockRepartidores()
-            if (!context.fileList().contains("admins.txt")) initializeMockAdmins()
-        } catch (_: Exception) {
-            // Handle initialization error silently
+            initializeMockClientes()
+            initializeMockRestaurants()
+            initializeMockRepartidores()
+            initializeMockPedidos()
+            resetRepartidoresEstado()
+        } catch (e: Exception) {
+            Timber.e(e, "Error initializing data")
         }
+    }
+
+    // --- User Methods ---
+    suspend fun getUserByCedula(cedula: String): UserType? = withContext(Dispatchers.IO) {
+        val cliente = getClientes().find { it.cedula == cedula }
+        if (cliente != null) return@withContext UserType.ClienteUser(cliente)
+
+        val repartidor = getRepartidores().find { it.cedula == cedula }
+        if (repartidor != null) return@withContext UserType.RepartidorUser(repartidor)
+
+        val restaurante = getRestaurantes().find { it.cedulaJuridica == cedula }
+        if (restaurante != null) return@withContext UserType.RestauranteUser(restaurante)
+
+        val admin = getAdmins().find { it.nombreUsuario == cedula }
+        if (admin != null) return@withContext UserType.AdminUser(admin)
+
+        null
     }
 
     // --- Cliente Methods ---
@@ -67,6 +90,11 @@ class CletaEatsRepository(
     }
 
     suspend fun registerCliente(cliente: Cliente) = withContext(Dispatchers.IO) {
+        if (!isCedulaValid(cliente.cedula)) return@withContext false
+        if (!isContrasenaValid(cliente.contrasena)) return@withContext false
+        if (cliente.nombre.isBlank() || cliente.direccion.isBlank() || cliente.telefono.isBlank() || cliente.correo.isBlank() || cliente.numeroTarjeta.isBlank()) {
+            return@withContext false
+        }
         val clientes = getClientes().toMutableList()
         if (clientes.none { it.cedula == cliente.cedula }) {
             clientes.add(cliente)
@@ -103,6 +131,14 @@ class CletaEatsRepository(
     }
 
     suspend fun registerRepartidor(repartidor: Repartidor) = withContext(Dispatchers.IO) {
+        if (!isCedulaValid(repartidor.cedula)) return@withContext false
+        if (!isContrasenaValid(repartidor.contrasena)) return@withContext false
+        if (repartidor.nombre.isBlank() || repartidor.direccion.isBlank() || repartidor.telefono.isBlank() || repartidor.correo.isBlank()) {
+            return@withContext false
+        }
+        if (repartidor.costoPorKmHabiles != 1000.0 || repartidor.costoPorKmFeriados != 1500.0) {
+            return@withContext false
+        }
         val repartidores = getRepartidores().toMutableList()
         if (repartidores.none { it.cedula == repartidor.cedula }) {
             repartidores.add(repartidor)
@@ -135,6 +171,13 @@ class CletaEatsRepository(
             }
         }
 
+    suspend fun resetRepartidoresEstado() = withContext(Dispatchers.IO) {
+        val repartidores = getRepartidores().map {
+            if (it.amonestaciones < 4) it.copy(estado = "disponible") else it
+        }
+        saveRepartidores(repartidores)
+    }
+
     // --- Restaurante Methods ---
     suspend fun saveRestaurantes(restaurantes: List<Restaurante>) = withContext(Dispatchers.IO) {
         retryIO(3) {
@@ -157,6 +200,40 @@ class CletaEatsRepository(
             }
         } catch (_: Exception) {
             emptyList()
+        }
+    }
+
+    suspend fun registerRestaurante(restaurante: Restaurante) = withContext(Dispatchers.IO) {
+        if (!isCedulaJuridicaValid(restaurante.cedulaJuridica)) return@withContext false
+        if (!isContrasenaValid(restaurante.contrasena)) return@withContext false
+        if (restaurante.nombre.isBlank() || restaurante.direccion.isBlank() || restaurante.tipoComida.isBlank()) {
+            return@withContext false
+        }
+        if (!areCombosValid(restaurante.combos)) return@withContext false
+        val restaurantes = getRestaurantes().toMutableList()
+        if (restaurantes.none { it.cedulaJuridica == restaurante.cedulaJuridica }) {
+            restaurantes.add(restaurante)
+            saveRestaurantes(restaurantes)
+            true
+        } else {
+            false
+        }
+    }
+
+    private fun isCedulaValid(cedula: String) = cedula.length == 9 && cedula.all { it.isDigit() }
+    private fun isCedulaJuridicaValid(cedula: String) =
+        cedula.length == 10 && cedula.all { it.isDigit() }
+
+    private fun isContrasenaValid(password: String) = password.length >= 8
+    private fun areCombosValid(combos: List<RestauranteCombo>): Boolean {
+        val validPrices = mapOf(
+            1 to 4000.0, 2 to 5000.0, 3 to 6000.0, 4 to 7000.0, 5 to 8000.0,
+            6 to 9000.0, 7 to 10000.0, 8 to 11000.0, 9 to 12000.0
+        )
+        return combos.all { combo ->
+            combo.numero in 1..9 &&
+                    combo.nombre.isNotBlank() &&
+                    combo.precio == validPrices[combo.numero]
         }
     }
 
@@ -210,22 +287,59 @@ class CletaEatsRepository(
         }
     }
 
-    suspend fun createOrder(clienteId: String, restauranteId: String, combos: List<Int>): Pedido? =
-        withContext(Dispatchers.IO) {
-            val repartidores = getRepartidores()
-            val repartidor = repartidores
-                .filter { it.estado == "disponible" && it.amonestaciones < 4 }
-                .minByOrNull { it.distancia } ?: return@withContext null
+    suspend fun createOrder(
+        clienteId: String,
+        restauranteId: String,
+        combos: List<PedidoCombo>,
+        distancia: Double
+    ): Pedido? = withContext(Dispatchers.IO) {
+        Timber.d("Attempting to create order with clienteId: $clienteId, restauranteId: $restauranteId")
+        try {
+            // Validar cliente por ID
+            val cliente = getClientes().find { it.id == clienteId && it.estado == "activo" }
+                ?: run {
+                    Timber.e("Cliente not found or not active for clienteId: $clienteId")
+                    return@withContext null
+                }
 
-            val comboPrices = mapOf(
-                1 to 4000.0, 2 to 5000.0, 3 to 6000.0, 4 to 7000.0, 5 to 8000.0,
-                6 to 9000.0, 7 to 10000.0, 8 to 11000.0, 9 to 12000.0
-            )
-            val precio = combos.sumOf { comboPrices.getOrDefault(it, 0.0) }
-            val costoTransporte = repartidor.distancia * repartidor.costoPorKm
+            // Validar restaurante
+            val restaurante = getRestaurantes().find { it.id == restauranteId }
+                ?: return@withContext null
+
+            // Validar combos
+            combos.forEach { pedidoCombo ->
+                val comboValido = restaurante.combos.find {
+                    it.numero == pedidoCombo.numero &&
+                            it.nombre == pedidoCombo.nombre &&
+                            it.precio == pedidoCombo.precio
+                }
+                if (comboValido == null) {
+                    throw IllegalArgumentException("Combo ${pedidoCombo.numero} no válido para el restaurante ${restaurante.nombre}")
+                }
+            }
+
+            // Log available repartidores
+            val availableRepartidores = getRepartidores()
+                .filter { it.estado == "disponible" && it.amonestaciones < 4 }
+            Timber.d("Available repartidores: ${availableRepartidores.map { it.nombre }}")
+
+            // Obtener repartidor disponible
+            val repartidor = availableRepartidores.shuffled().firstOrNull()
+                ?: run {
+                    Timber.e("No repartidores disponibles")
+                    return@withContext null
+                }
+
+            // Calcular costos
+            val isFeriado = false
+            val costoPorKm =
+                if (isFeriado) repartidor.costoPorKmFeriados else repartidor.costoPorKmHabiles
+            val precio = combos.sumOf { it.precio }
+            val costoTransporte = distancia * costoPorKm
             val iva = precio * 0.13
             val total = precio + costoTransporte + iva
 
+            // Crear pedido
             val pedido = Pedido(
                 id = UUID.randomUUID().toString(),
                 clienteId = clienteId,
@@ -233,6 +347,7 @@ class CletaEatsRepository(
                 repartidorId = repartidor.id,
                 combos = combos,
                 precio = precio,
+                distancia = distancia,
                 costoTransporte = costoTransporte,
                 iva = iva,
                 total = total,
@@ -240,36 +355,70 @@ class CletaEatsRepository(
                 horaRealizado = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(
                     Date()
                 ),
-                horaEntregado = null
+                horaEntregado = null,
+                nombreRestaurante = restaurante.nombre
             )
 
+            // Actualizar estado del repartidor
+            val repartidores = getRepartidores().toMutableList()
+            val index = repartidores.indexOfFirst { it.id == repartidor.id }
+            if (index >= 0) {
+                repartidores[index] = repartidor.copy(estado = "ocupado")
+                saveRepartidores(repartidores)
+            }
+
+            // Guardar pedido
             val pedidos = getPedidos().toMutableList()
             pedidos.add(pedido)
             savePedidos(pedidos)
+            Timber.d("Pedido creado: ${pedido.id}")
             pedido
+        } catch (e: Exception) {
+            Timber.e(e, "Error al crear pedido")
+            null
         }
+    }
 
     suspend fun updateOrderStatus(orderId: String, newStatus: String): Boolean =
         withContext(Dispatchers.IO) {
-            val pedidos = getPedidos().toMutableList()
-            val pedido = pedidos.find { it.id == orderId } ?: return@withContext false
-            val updatedPedido = when (newStatus) {
-                "entregado" -> pedido.copy(
-                    estado = newStatus,
-                    horaEntregado = SimpleDateFormat(
-                        "yyyy-MM-dd HH:mm:ss",
-                        Locale.getDefault()
-                    ).format(Date())
-                )
+            try {
+                val pedidos = getPedidos().toMutableList()
+                val pedido = pedidos.find { it.id == orderId } ?: return@withContext false
+                val updatedPedido = when (newStatus) {
+                    "entregado" -> {
+                        // Actualizar kmRecorridosDiarios del repartidor
+                        val repartidores = getRepartidores().toMutableList()
+                        val repartidor = repartidores.find { it.id == pedido.repartidorId }
+                            ?: return@withContext false
+                        val updatedRepartidor = repartidor.copy(
+                            kmRecorridosDiarios = repartidor.kmRecorridosDiarios + pedido.distancia,
+                            estado = "disponible" // Liberar al repartidor
+                        )
+                        val repartidorIndex = repartidores.indexOfFirst { it.id == repartidor.id }
+                        if (repartidorIndex >= 0) {
+                            repartidores[repartidorIndex] = updatedRepartidor
+                            saveRepartidores(repartidores)
+                        }
+                        pedido.copy(
+                            estado = newStatus,
+                            horaEntregado = SimpleDateFormat(
+                                "yyyy-MM-dd HH:mm:ss",
+                                Locale.getDefault()
+                            ).format(Date())
+                        )
+                    }
 
-                else -> pedido.copy(estado = newStatus)
-            }
-            val index = pedidos.indexOf(pedido)
-            if (index >= 0) {
-                pedidos[index] = updatedPedido
-                savePedidos(pedidos)
-                true
-            } else {
+                    else -> pedido.copy(estado = newStatus)
+                }
+                val index = pedidos.indexOf(pedido)
+                if (index >= 0) {
+                    pedidos[index] = updatedPedido
+                    savePedidos(pedidos)
+                    true
+                } else {
+                    false
+                }
+            } catch (_: Exception) {
                 false
             }
         }
@@ -277,18 +426,20 @@ class CletaEatsRepository(
     // --- Authentication Methods ---
     suspend fun authenticateUser(cedula: String, contrasena: String): UserType? =
         withContext(Dispatchers.IO) {
-            val cliente = getClientes().find { it.cedula == cedula && it.contrasena == contrasena }
+            val cliente =
+                getClientes().find { it.cedula == cedula && it.contrasena == contrasena && it.estado == "activo" }
             if (cliente != null) return@withContext UserType.ClienteUser(cliente)
 
             val repartidor =
-                getRepartidores().find { it.cedula == cedula && it.contrasena == contrasena }
+                getRepartidores().find { it.cedula == cedula && it.contrasena == contrasena && it.amonestaciones < 4 && it.estado != "inactivo" }
             if (repartidor != null) return@withContext UserType.RepartidorUser(repartidor)
 
             val restaurante =
                 getRestaurantes().find { it.cedulaJuridica == cedula && it.contrasena == contrasena }
             if (restaurante != null) return@withContext UserType.RestauranteUser(restaurante)
 
-            val admin = getAdmins().find { it.username == cedula && it.password == contrasena }
+            val admin =
+                getAdmins().find { it.nombreUsuario == cedula && it.contrasena == contrasena }
             if (admin != null) return@withContext UserType.AdminUser(admin)
 
             null
@@ -331,12 +482,56 @@ class CletaEatsRepository(
         }
     }
 
+    // --- Report Methods ---
     suspend fun getActiveClients(): List<Cliente> = withContext(Dispatchers.IO) {
         getClientes().filter { it.estado == "activo" }
     }
 
+    suspend fun getSuspendedClients(): List<Cliente> = withContext(Dispatchers.IO) {
+        getClientes().filter { it.estado == "suspendido" }
+    }
+
+    suspend fun getRepartidoresSinAmonestaciones(): List<Repartidor> = withContext(Dispatchers.IO) {
+        getRepartidores().filter { it.amonestaciones == 0 }
+    }
+
     suspend fun getTotalRevenueByRestaurant(): Map<String, Double> = withContext(Dispatchers.IO) {
         getPedidos().groupBy { it.restauranteId }.mapValues { it.value.sumOf { it.total } }
+    }
+
+    suspend fun getRestauranteConMasPedidos(): Restaurante? = withContext(Dispatchers.IO) {
+        val pedidosPorRestaurante = getPedidos().groupBy { it.restauranteId }
+        val maxPedidos = pedidosPorRestaurante.maxByOrNull { it.value.size }
+        getRestaurantes().find { it.id == maxPedidos?.key }
+    }
+
+    suspend fun getRestauranteConMenosPedidos(): Restaurante? = withContext(Dispatchers.IO) {
+        val pedidosPorRestaurante = getPedidos().groupBy { it.restauranteId }
+        val minPedidos = pedidosPorRestaurante.minByOrNull { it.value.size }
+        getRestaurantes().find { it.id == minPedidos?.key }
+    }
+
+    suspend fun getQuejasPorRepartidor(): Map<String, List<String>> = withContext(Dispatchers.IO) {
+        getRepartidores().associate { it.id to it.quejas }
+    }
+
+    suspend fun getPedidosPorCliente(): Map<String, List<Pedido>> = withContext(Dispatchers.IO) {
+        getPedidos().groupBy { it.clienteId }
+    }
+
+    suspend fun getClienteConMasPedidos(): Cliente? = withContext(Dispatchers.IO) {
+        val pedidosPorCliente = getPedidos().groupBy { it.clienteId }
+        val maxPedidos = pedidosPorCliente.maxByOrNull { it.value.size }
+        getClientes().find { it.id == maxPedidos?.key }
+    }
+
+    suspend fun getHoraPicoPedidos(): String? = withContext(Dispatchers.IO) {
+        val pedidos = getPedidos()
+        if (pedidos.isEmpty()) return@withContext null
+        val horas = pedidos.groupBy {
+            it.horaRealizado.substring(11, 13) // Extraer hora (HH)
+        }
+        horas.maxByOrNull { it.value.size }?.key
     }
 
     // --- Mock Data Initialization ---
@@ -350,7 +545,8 @@ class CletaEatsRepository(
                 telefono = "88888888",
                 correo = "ana@example.com",
                 estado = "activo",
-                contrasena = "password"
+                contrasena = "password1234",
+                numeroTarjeta = "1234567812345678"
             ),
             Cliente(
                 id = UUID.randomUUID().toString(),
@@ -359,8 +555,20 @@ class CletaEatsRepository(
                 direccion = "Heredia, Costa Rica",
                 telefono = "77777777",
                 correo = "carlos@example.com",
+                estado = "suspendido",
+                contrasena = "password1234",
+                numeroTarjeta = "8765432187654321"
+            ),
+            Cliente(
+                id = UUID.randomUUID().toString(),
+                cedula = "555666777",
+                nombre = "Laura Fernández",
+                direccion = "Alajuela, Costa Rica",
+                telefono = "66666666",
+                correo = "laura@example.com",
                 estado = "activo",
-                contrasena = "password"
+                contrasena = "password1234",
+                numeroTarjeta = "1111222233334444"
             )
         )
         saveClientes(mockClientes)
@@ -370,76 +578,188 @@ class CletaEatsRepository(
         val mockRestaurants = listOf(
             Restaurante(
                 id = UUID.randomUUID().toString(),
-                cedulaJuridica = "300123456789",
+                cedulaJuridica = "3001234567",
                 nombre = "La Pizzeria",
-                direccion = "San José",
+                direccion = "San José, Costa Rica",
                 tipoComida = "Italiana",
-                contrasena = "password"
+                contrasena = "password1234",
+                combos = listOf(
+                    RestauranteCombo(1, "Pizza Margherita", 4000.0),
+                    RestauranteCombo(2, "Pizza Pepperoni", 5000.0),
+                    RestauranteCombo(3, "Pizza Suprema", 6000.0)
+                )
             ),
             Restaurante(
                 id = UUID.randomUUID().toString(),
-                cedulaJuridica = "300987654321",
+                cedulaJuridica = "3009876543",
                 nombre = "Taco Loco",
-                direccion = "Heredia",
+                direccion = "Heredia, Costa Rica",
                 tipoComida = "Mexicana",
-                contrasena = "password"
+                contrasena = "password1234",
+                combos = listOf(
+                    RestauranteCombo(1, "Taco al Pastor", 4000.0),
+                    RestauranteCombo(2, "Burrito Grande", 5000.0),
+                    RestauranteCombo(3, "Quesadilla Especial", 6000.0)
+                )
+            ),
+            Restaurante(
+                id = UUID.randomUUID().toString(),
+                cedulaJuridica = "3001112223",
+                nombre = "Sushi House",
+                direccion = "Alajuela, Costa Rica",
+                tipoComida = "Japonesa",
+                contrasena = "password1234",
+                combos = listOf(
+                    RestauranteCombo(1, "Sushi Básico", 4000.0),
+                    RestauranteCombo(2, "Sushi Combinado", 5000.0),
+                    RestauranteCombo(3, "Sushi Premium", 6000.0),
+                    RestauranteCombo(4, "Sushi Deluxe", 7000.0)
+                )
             )
         )
         saveRestaurantes(mockRestaurants)
     }
 
     private suspend fun initializeMockPedidos() = withContext(Dispatchers.IO) {
-        val restaurants = getRestaurantes()
-        val mockPedidos = restaurants.map { restaurant ->
+        val clientes = getClientes()
+        val restaurantes = getRestaurantes()
+        val repartidores = getRepartidores()
+        if (clientes.isEmpty() || restaurantes.isEmpty() || repartidores.isEmpty()) return@withContext
+
+        val mockPedidos = listOf(
             Pedido(
                 id = UUID.randomUUID().toString(),
-                clienteId = "123456789",
-                restauranteId = restaurant.id,
-                repartidorId = UUID.randomUUID().toString(),
-                combos = listOf(1, 2),
-                precio = 9000.0,
-                costoTransporte = 5000.0,
-                iva = 1170.0,
-                total = 15170.0,
-                estado = "en preparación",
-                horaRealizado = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(
-                    Date()
+                clienteId = clientes[0].id,
+                restauranteId = restaurantes[0].id,
+                repartidorId = repartidores[0].id,
+                combos = listOf(
+                    PedidoCombo(1, "Pizza Margherita", 4000.0),
+                    PedidoCombo(2, "Pizza Pepperoni", 5000.0)
                 ),
-                horaEntregado = null
+                precio = 9000.0,
+                distancia = 5.0,
+                costoTransporte = 5.0 * 1000.0,
+                iva = 9000.0 * 0.13,
+                total = 9000.0 + (5.0 * 1000.0) + (9000.0 * 0.13),
+                estado = "en preparación",
+                horaRealizado = "2025-06-18 12:00:00",
+                horaEntregado = null,
+                nombreRestaurante = restaurantes[0].nombre
+            ),
+            Pedido(
+                id = UUID.randomUUID().toString(),
+                clienteId = clientes[1].id,
+                restauranteId = restaurantes[1].id,
+                repartidorId = repartidores[1].id,
+                combos = listOf(
+                    PedidoCombo(1, "Taco al Pastor", 4000.0),
+                    PedidoCombo(2, "Burrito Grande", 5000.0)
+                ),
+                precio = 9000.0,
+                distancia = 3.0,
+                costoTransporte = 3.0 * 1000.0,
+                iva = 9000.0 * 0.13,
+                total = 9000.0 + (3.0 * 1000.0) + (9000.0 * 0.13),
+                estado = "en camino",
+                horaRealizado = "2025-06-18 13:00:00",
+                horaEntregado = null,
+                nombreRestaurante = restaurantes[1].nombre
+            ),
+            Pedido(
+                id = UUID.randomUUID().toString(),
+                clienteId = clientes[2].id,
+                restauranteId = restaurantes[0].id,
+                repartidorId = repartidores[0].id,
+                combos = listOf(
+                    PedidoCombo(3, "Pizza Suprema", 6000.0)
+                ),
+                precio = 6000.0,
+                distancia = 4.0,
+                costoTransporte = 4.0 * 1000.0,
+                iva = 6000.0 * 0.13,
+                total = 6000.0 + (4.0 * 1000.0) + (6000.0 * 0.13),
+                estado = "entregado",
+                horaRealizado = "2025-06-18 14:00:00",
+                horaEntregado = "2025-06-18 14:30:00",
+                nombreRestaurante = restaurantes[0].nombre
+            ),
+            Pedido(
+                id = UUID.randomUUID().toString(),
+                clienteId = clientes[0].id,
+                restauranteId = restaurantes[2].id,
+                repartidorId = repartidores[1].id,
+                combos = listOf(
+                    PedidoCombo(1, "Sushi Básico", 4000.0),
+                    PedidoCombo(4, "Sushi Deluxe", 7000.0)
+                ),
+                precio = 11000.0,
+                distancia = 6.0,
+                costoTransporte = 6.0 * 1000.0,
+                iva = 11000.0 * 0.13,
+                total = 11000.0 + (6.0 * 1000.0) + (11000.0 * 0.13),
+                estado = "en preparación",
+                horaRealizado = "2025-06-18 15:00:00",
+                horaEntregado = null,
+                nombreRestaurante = restaurantes[2].nombre
             )
-        }
+        )
         savePedidos(mockPedidos)
     }
 
     private suspend fun initializeMockRepartidores() = withContext(Dispatchers.IO) {
         val mockRepartidores = listOf(
             Repartidor(
-                id = UUID.randomUUID().toString(),
+                id = "1",
                 cedula = "111222333",
                 nombre = "Juan Pérez",
-                direccion = "Heredia",
+                direccion = "Heredia, Costa Rica",
                 telefono = "88888888",
                 correo = "juan@example.com",
                 estado = "disponible",
-                distancia = 5.0,
-                costoPorKm = 1000.0,
+                kmRecorridosDiarios = 0.0,
+                costoPorKmHabiles = 1000.0,
+                costoPorKmFeriados = 1500.0,
                 amonestaciones = 0,
                 quejas = emptyList(),
-                contrasena = "password"
+                contrasena = "password1234",
+                numeroTarjeta = "1234567812345678"
             ),
             Repartidor(
-                id = UUID.randomUUID().toString(),
+                id = "2",
                 cedula = "444555666",
                 nombre = "María Gómez",
-                direccion = "Alajuela",
+                direccion = "Alajuela, Costa Rica",
                 telefono = "77777777",
                 correo = "maria@example.com",
                 estado = "disponible",
-                distancia = 3.0,
-                costoPorKm = 1000.0,
+                kmRecorridosDiarios = 0.0,
+                costoPorKmHabiles = 1000.0,
+                costoPorKmFeriados = 1500.0,
                 amonestaciones = 1,
-                quejas = emptyList(),
-                contrasena = "password"
+                quejas = listOf("Retraso en entrega"),
+                contrasena = "password1234",
+                numeroTarjeta = null
+            ),
+            Repartidor(
+                id = "3",
+                cedula = "777888999",
+                nombre = "Pedro Sánchez",
+                direccion = "San José, Costa Rica",
+                telefono = "66666666",
+                correo = "pedro@example.com",
+                estado = "inactivo",
+                kmRecorridosDiarios = 0.0,
+                costoPorKmHabiles = 1000.0,
+                costoPorKmFeriados = 1500.0,
+                amonestaciones = 4,
+                quejas = listOf(
+                    "Mala atención",
+                    "Producto dañado",
+                    "Retraso",
+                    "No entregó factura"
+                ),
+                contrasena = "password1234",
+                numeroTarjeta = null
             )
         )
         saveRepartidores(mockRepartidores)
@@ -449,8 +769,8 @@ class CletaEatsRepository(
         val mockAdmins = listOf(
             Admin(
                 id = UUID.randomUUID().toString(),
-                username = "admin",
-                password = "admin123"
+                nombreUsuario = "admin1234",
+                contrasena = "password1234"
             )
         )
         saveAdmins(mockAdmins)

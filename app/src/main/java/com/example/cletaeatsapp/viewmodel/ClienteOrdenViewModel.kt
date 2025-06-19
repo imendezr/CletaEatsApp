@@ -3,6 +3,7 @@ package com.example.cletaeatsapp.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.cletaeatsapp.data.model.Pedido
+import com.example.cletaeatsapp.data.model.PedidoCombo
 import com.example.cletaeatsapp.data.repository.CletaEatsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
@@ -24,7 +25,7 @@ class ClienteOrdenViewModel @Inject constructor(
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage = _errorMessage.asStateFlow()
 
-    private val _selectedCombos = MutableStateFlow<List<Int>>(emptyList())
+    private val _selectedCombos = MutableStateFlow<List<PedidoCombo>>(emptyList())
     val selectedCombos = _selectedCombos.asStateFlow()
 
     init {
@@ -42,7 +43,7 @@ class ClienteOrdenViewModel @Inject constructor(
                 val restaurantes = restaurantesDeferred.await()
                 val updatedPedidos = pedidos.map { pedido ->
                     pedido.copy(
-                        restaurantName = restaurantes[pedido.restauranteId]?.nombre
+                        nombreRestaurante = restaurantes[pedido.restauranteId]?.nombre
                             ?: pedido.restauranteId
                     )
                 }
@@ -60,35 +61,53 @@ class ClienteOrdenViewModel @Inject constructor(
         return _pedidos.value.find { it.id == pedidoId }
     }
 
-    fun addCombo(combo: Int) {
-        if (combo in 1..9 && !_selectedCombos.value.contains(combo)) {
-            val currentCombos = _selectedCombos.value.toMutableList()
-            currentCombos.add(combo)
-            _selectedCombos.value = currentCombos
+    fun addCombo(restauranteId: String, comboNumero: Int) {
+        viewModelScope.launch {
+            try {
+                val restaurante = repository.getRestaurantes().find { it.id == restauranteId }
+                val combo = restaurante?.combos?.find { it.numero == comboNumero }
+                if (combo != null && !_selectedCombos.value.any { it.numero == comboNumero }) {
+                    val currentCombos = _selectedCombos.value.toMutableList()
+                    currentCombos.add(PedidoCombo(combo.numero, combo.nombre, combo.precio))
+                    _selectedCombos.value = currentCombos
+                }
+            } catch (e: Exception) {
+                _errorMessage.value = "Error al agregar combo: ${e.message}"
+            }
         }
     }
 
-    fun removeCombo(combo: Int) {
+    fun removeCombo(comboNumero: Int) {
         val currentCombos = _selectedCombos.value.toMutableList()
-        currentCombos.remove(combo)
+        currentCombos.removeIf { it.numero == comboNumero }
         _selectedCombos.value = currentCombos
     }
 
-    fun createOrder(clienteId: String, restauranteId: String, onSuccess: () -> Unit) {
+    fun createOrder(
+        clienteId: String,
+        restauranteId: String,
+        distancia: Double,
+        onSuccess: () -> Unit
+    ) {
         viewModelScope.launch {
             if (_selectedCombos.value.isEmpty()) {
                 _errorMessage.value = "Seleccione al menos un combo."
                 return@launch
             }
-            if (_selectedCombos.value.any { it !in 1..9 }) {
-                _errorMessage.value = "Combos inválidos seleccionados."
+            if (distancia <= 0) {
+                _errorMessage.value = "Distancia inválida."
                 return@launch
             }
             _isLoading.value = true
             try {
-                val pedido = repository.createOrder(clienteId, restauranteId, _selectedCombos.value)
+                val pedido = repository.createOrder(
+                    clienteId,
+                    restauranteId,
+                    _selectedCombos.value,
+                    distancia
+                )
                 if (pedido == null) {
-                    _errorMessage.value = "No hay repartidores disponibles."
+                    _errorMessage.value = "No hay repartidores disponibles o datos inválidos."
                 } else {
                     _errorMessage.value = null
                     _selectedCombos.value = emptyList()

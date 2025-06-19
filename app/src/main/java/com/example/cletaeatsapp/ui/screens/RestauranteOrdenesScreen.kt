@@ -92,6 +92,7 @@ fun RestauranteOrdenesScreen(
                 isLoading -> {
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
                 }
+
                 errorMessage != null -> {
                     Text(
                         text = errorMessage ?: "Error desconocido",
@@ -99,6 +100,7 @@ fun RestauranteOrdenesScreen(
                         modifier = Modifier.padding(16.dp)
                     )
                 }
+
                 pedidos.isEmpty() -> {
                     Text(
                         text = "No hay pedidos asignados",
@@ -106,6 +108,7 @@ fun RestauranteOrdenesScreen(
                         modifier = Modifier.padding(16.dp)
                     )
                 }
+
                 else -> {
                     LazyColumn(
                         contentPadding = PaddingValues(bottom = 16.dp),
@@ -129,7 +132,13 @@ fun RestauranteOrdenesScreen(
                                             viewModel.updateOrderStatus(pedido.id, "en camino")
                                         }
                                     },
-                                    isRepartidor = false
+                                    onMarkSuspended = {
+                                        if (pedido.estado != "suspendido") {
+                                            viewModel.updateOrderStatus(pedido.id, "suspendido")
+                                        }
+                                    },
+                                    isRepartidor = false,
+                                    isRestaurant = true
                                 )
                             }
                         }

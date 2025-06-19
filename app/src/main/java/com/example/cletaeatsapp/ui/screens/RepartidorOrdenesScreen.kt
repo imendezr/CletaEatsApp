@@ -61,7 +61,6 @@ fun RepartidorOrdenesScreen(
     navController: NavController
 ) {
     val userType by loginViewModel.userType.collectAsStateWithLifecycle()
-    // Role validation
     if (userType !is UserType.RepartidorUser) {
         LaunchedEffect(Unit) {
             navController.navigate("login") {
@@ -130,7 +129,8 @@ fun RepartidorOrdenesScreen(
                                     }
                                 },
                                 onClick = { selectedPedido = pedido },
-                                isRepartidor = true
+                                isRepartidor = true,
+                                isRestaurant = false
                             )
                         }
                     }
@@ -152,7 +152,8 @@ fun RepartidorOrdenesScreen(
                                     navController.navigate("repartidor_quejas")
                                 }
                             },
-                            isRepartidor = true
+                            isRepartidor = true,
+                            isRestaurant = false
                         )
                     } ?: Text(
                         text = "Seleccione un pedido para ver detalles",
@@ -208,7 +209,8 @@ fun RepartidorOrdenesScreen(
                                                 navController.navigate("repartidor_quejas")
                                             }
                                         },
-                                        isRepartidor = true
+                                        isRepartidor = true,
+                                        isRestaurant = false
                                     )
                                 }
                             }
